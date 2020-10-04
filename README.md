@@ -6,5 +6,5 @@ Script needs to be ran under a sudo user and not under root. It will install bin
 ## Installation
 Create a sudo user and run this under that sudo user. Script will exit if ran under root.
 ```
-bash <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/master/install.sh)
+bash <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/main/install.sh)
 ```
