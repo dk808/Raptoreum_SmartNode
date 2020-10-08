@@ -7,5 +7,5 @@ Script needs to be ran under a sudo user and not under root. It will install bin
 Create a sudo user and run this under that sudo user. Script will exit if ran under root.  
 Script will ask for BLS PrivKey(operatorSecret) that you get from the protx quick_setup command. So have it ready.
 ```
-bash <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/master/install.sh)
+bash <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/main/install.sh)
 ```
