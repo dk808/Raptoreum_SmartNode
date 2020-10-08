@@ -4,11 +4,11 @@ COIN_NAME='raptoreum'
 
 #wallet information
 WALLET_TAR='https://github.com/Raptor3um/Raptoreum/releases/download/2.0b/raptoreum-2.0b-x86_64-linux-gnu.tar'
-#BOOTSTRAP_ZIP=''
-#BOOTSTRAP_ZIPFILE=''
+BOOTSTRAP_ZIP='https://www.dropbox.com/s/vuvxnvnv7cy02hs/rtm-bootstrap.zip'
+BOOTSTRAP_ZIPFILE='rtm-bootstrap.zip'
 CONFIG_DIR='.raptoreumcore'
 CONFIG_FILE='raptoreum.conf'
-PORT='19889'
+PORT='19989'
 SSHPORT='22'
 COIN_DAEMON='raptoreumd'
 COIN_CLI='raptoreum-cli'
@@ -25,21 +25,18 @@ CYAN='\033[1;36m'
 NC='\033[0m'
 STOP='\e[0m'
 
-#emoji code
-CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
-
 #end of required details
 #
 
 echo -e "${YELLOW}==========================================================="
 echo -e 'RTM Smartnode Setup'
 echo -e "===========================================================${NC}"
-echo -e "${BLUE}Oct 2020, by AltTank Army and dk808${NC}"
+echo -e "${BLUE}Oct 2020, created by dk808${NC}"
 echo -e
 echo -e "${CYAN}Node setup starting, press [CTRL-C] to cancel.${NC}"
 sleep 5
 if [ "$USERNAME" = "root" ]; then
-    echo -e "${CYAN}You are currently logged in as ${NC}root${CYAN}, please switch to the username you just created.${NC}"
+    echo -e "${CYAN}You are currently logged in as ${NC}root${CYAN}, please switch to a sudo user.${NC}"
     exit
 fi
 
@@ -51,7 +48,7 @@ function wipe_clean() {
     sudo killall $COIN_DAEMON > /dev/null 2>&1
     sudo rm /usr/local/bin/raptoreum* > /dev/null 2>&1 && sleep 1
     sudo rm /usr/bin/raptoreum* > /dev/null 2>&1 && sleep 1
-    rm -rf $BOOTSTRAP_ZIP_FILE
+    rm -rf $BOOTSTRAP_ZIPFILE
     rm -rf sentinel
 }
 
@@ -91,19 +88,9 @@ function create_swap() {
 
 function install_packages() { 
     echo -e "${YELLOW}Installing Packages...${NC}"
-    sudo apt-get install software-properties-common -y
     sudo apt-get update -y
     sudo apt-get upgrade -y
-    sudo apt-get install nano htop pwgen ufw figlet pv -y
-    sudo apt-get install build-essential libtool autotools-dev pkg-config libssl-dev libevent-dev -y
-    sudo apt-get install libc6-dev m4 g++-multilib -y
-    sudo apt-get install python-virtualenv virtualenv -y
-    sudo apt-get install libboost-all-dev autoconf ncurses-dev unzip git python python-zmq -y
-    sudo apt-get install wget curl bsdmainutils automake fail2ban -y
-    sudo add-apt-repository ppa:bitcoin/bitcoin -y
-    sudo apt-get update
-    sudo apt-get install libdb4.8-dev libdb4.8++-dev -y
-    sudo apt-get install libminiupnpc-dev libzmq3-dev -y
+    sudo apt-get install nano htop pwgen figlet unzip -y
     echo -e "${YELLOW}Packages complete...${NC}"
 }
 
@@ -122,18 +109,18 @@ function spinning_timer() {
 }
 
 function create_conf() {
-    if [ -f ~/$CONFIG_DIR/$CONFIG_FILE ]; then
+    if [ -f $HOME/$CONFIG_DIR/$CONFIG_FILE ]; then
         echo -e "${CYAN}Existing conf file found backing up to $COIN_NAME.old ...${NC}"
-        mv ~/$CONFIG_DIR/$CONFIG_FILE ~/$CONFIG_DIR/$COIN_NAME.old;
+        mv $HOME/$CONFIG_DIR/$CONFIG_FILE $HOME/$CONFIG_DIR/$COIN_NAME.old;
     fi
-    RPCUSER=`pwgen -1 8 -n`
-    PASSWORD=`pwgen -1 20 -n`
+    RPCUSER=$(pwgen -1 8 -n)
+    PASSWORD=$(pwgen -1 20 -n)
     smartnodeblsprivkey=$(whiptail --inputbox "Enter your SmartNode BLS Privkey" 8 75 3>&1 1>&2 2>&3)
     echo -e "${YELLOW}Creating Conf File...${NC}"
     sleep 1
-    mkdir ~/$CONFIG_DIR > /dev/null 2>&1
-    touch ~/$CONFIG_DIR/$CONFIG_FILE
-    cat << EOF > ~/$CONFIG_DIR/$CONFIG_FILE
+    mkdir $HOME/$CONFIG_DIR > /dev/null 2>&1
+    touch $HOME/$CONFIG_DIR/$CONFIG_FILE
+    cat << EOF > $HOME/$CONFIG_DIR/$CONFIG_FILE
 rpcuser=$RPCUSER
 rpcpassword=$PASSWORD
 rpcallowip=127.0.0.1
@@ -143,6 +130,9 @@ daemon=1
 listen=1
 smartnodeblsprivkey=$smartnodeblsprivkey
 externalip=$WANIP
+addnode=45.63.5.61
+addnode=45.63.6.62
+addnode=45.133.203.10
 addnode=207.180.236.174
 addnode=152.44.40.67
 addnode=173.249.7.48
@@ -159,17 +149,21 @@ function install_bins() {
 }
 
 function bootstrap() {
-    if [ -e ~/$CONFIG_DIR/blocks -a -e ~/$CONFIG_DIR/chainstate ]; then
-        rm -rf ~/$CONFIG_DIR/blocks ~/$CONFIG_DIR/chainstate
-        echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
-        wget $BOOTSTRAP_ZIP
-        unzip $BOOTSTRAP_ZIPFILE -d ~/$CONFIG_DIR
-        rm -rf $BOOTSTRAP_ZIPFILE
+    if whiptail --yesno "Would you like to bootstrap the chain?" 8 42; then
+        if [ -d $HOME/$CONFIG_DIR/blocks ]; then
+            rm -rf $HOME/$CONFIG_DIR/blocks $HOME/$CONFIG_DIR/chainstate $HOME/$CONFIG_DIR/llmq $HOME/$CONFIG_DIR/evodb
+            echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
+            wget $BOOTSTRAP_ZIP
+            unzip $BOOTSTRAP_ZIPFILE -d $HOME/$CONFIG_DIR
+            rm -rf $BOOTSTRAP_ZIPFILE
+        else
+            echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
+            wget $BOOTSTRAP_ZIP
+            unzip $BOOTSTRAP_ZIPFILE -d $HOME/$CONFIG_DIR
+            rm -rf $BOOTSTRAP_ZIPFILE
+        fi
     else
-        echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
-        wget $BOOTSTRAP_ZIP
-        unzip $BOOTSTRAP_ZIPFILE -d ~/$CONFIG_DIR
-        rm -rf $BOOTSTRAP_ZIPFILE
+        echo "${YELLOW}Skipping bootstrap...${NC}"
     fi
 }
 
@@ -234,17 +228,19 @@ EOF
 }
 
 function basic_security() {
-    echo -e "${YELLOW}Configuring firewall and enabling fail2ban...${NC}"
-    sudo ufw allow $SSHPORT/tcp
-    sudo ufw allow $PORT/tcp
-    sudo ufw logging on
-    sudo ufw default deny incoming
-    sudo ufw default allow outgoing
-    sudo ufw limit OpenSSH
-    echo "y" | sudo ufw enable > /dev/null 2>&1
-    sudo touch /etc/fail2ban/jail.local
-    sudo chown $USERNAME:$USERNAME /etc/fail2ban/jail.local
-    cat << EOF > /etc/fail2ban/jail.local
+    if whiptail --yesno "Would you like to setup basic firewall and fail2ban?" 8 56; then
+        echo -e "${YELLOW}Configuring firewall and enabling fail2ban...${NC}"
+        sudo apt-get install ufw fail2ban -y
+        sudo ufw allow $SSHPORT/tcp
+        sudo ufw allow $PORT/tcp
+        sudo ufw logging on
+        sudo ufw default deny incoming
+        sudo ufw default allow outgoing
+        sudo ufw limit OpenSSH
+        echo "y" | sudo ufw enable > /dev/null 2>&1
+        sudo touch /etc/fail2ban/jail.local
+        sudo chown $USERNAME:$USERNAME /etc/fail2ban/jail.local
+        cat << EOF > /etc/fail2ban/jail.local
 [sshd]
 enabled = true
 port = $SSHPORT
@@ -252,21 +248,25 @@ filter = sshd
 logpath = /var/log/auth.log
 maxretry = 3
 EOF
-    sudo chown root:root /etc/fail2ban/jail.local
-    sudo systemctl restart fail2ban > /dev/null 2>&1
-    sudo systemctl enable fail2ban > /dev/null 2>&1
+        sudo chown root:root /etc/fail2ban/jail.local
+        sudo systemctl restart fail2ban > /dev/null 2>&1
+        sudo systemctl enable fail2ban > /dev/null 2>&1
+    else
+        echo -e "${YELLOW}Skipping basic security...${NC}"
+    fi
 }
 
 function start_daemon() {
     NUM='180'
-    MSG1='Starting daemon service & syncing with blockchain please be patient this will take few min...'
-    MSG2=''
+    MSG1='Starting daemon service & syncing chain please be patient this will take few min...'
+    MSG=''
     if sudo systemctl start $COIN_NAME > /dev/null 2>&1; then
         echo && spinning_timer
         NUM='5'
         MSG1='Getting blockchain info...'
-        MSG2="${CHECK_MARK}"
+        MSG2=''
         echo && spinning_timer
+        echo
         $COIN_CLI getblockchaininfo
     else
         echo -e "${RED}Something is not right the daemon did not start. Will exit out so try and run the script again.${NC}"
@@ -307,7 +307,7 @@ EOF
   install_packages
   create_conf
   install_bins
-  #bootstrap
+  bootstrap
   #install_sentinel
   create_service
   basic_security
@@ -322,9 +322,9 @@ echo -e "${YELLOW}==============================================================
 echo -e "${GREEN}PLEASE COMPLETE THE SETUP BY REGISTERING YOUR SMARTNODE${NC}"
 echo -e "${CYAN}COURTESY OF DK808 FROM ZEL AND ALTTANK ARMY${NC}"
 echo
-echo -e "${GREEN}Commands to manage $COIN_NAME${NC}"
+echo -e "${GREEN}Commands to manage $COIN_NAME service${NC}"
 echo -e "  TO START- ${CYAN}sudo systemctl start $COIN_NAME${NC}"
 echo -e "  TO STOP - ${CYAN}sudo systemctl stop $COIN_NAME${NC}"
 echo -e "  STATUS  - ${CYAN}sudo systemctl status $COIN_NAME${NC}"
-echo -e "In the event server ${RED}reboots${NC} daemon service will ${GREEN}auto-start Raptoreumd${NC}"
+echo -e "In the event server ${RED}reboots${NC} daemon service will ${GREEN}auto-start${NC}"
 echo -e "${YELLOW}================================================================================================${NC}"
