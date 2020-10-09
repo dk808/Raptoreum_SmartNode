@@ -346,7 +346,6 @@ figlet -t -k "RTM  SMARTNODES"
 printf "${STOP}"
 
 echo -e "${YELLOW}================================================================================================"
-echo -e "PLEASE COMPLETE THE SETUP BY REGISTERING YOUR SMARTNODE${NC}"
 echo -e "${CYAN}COURTESY OF DK808 FROM ZEL AND ALTTANK ARMY${NC}"
 echo
 echo -e "${YELLOW}Commands to manage $COIN_NAME service${NC}"
