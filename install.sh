@@ -3,7 +3,6 @@
 COIN_NAME='raptoreum'
 
 #wallet information
-WALLET_TAR='https://github.com/Raptor3um/Raptoreum/releases/download/2.0b/raptoreum-2.0b-x86_64-linux-gnu.tar'
 BOOTSTRAP_ZIP='https://www.dropbox.com/s/vuvxnvnv7cy02hs/rtm-bootstrap.zip'
 BOOTSTRAP_ZIPFILE='rtm-bootstrap.zip'
 CONFIG_DIR='.raptoreumcore'
@@ -90,7 +89,7 @@ function install_packages() {
     echo -e "${YELLOW}Installing Packages...${NC}"
     sudo apt-get update -y
     sudo apt-get upgrade -y
-    sudo apt-get install nano htop pwgen figlet unzip -y
+    sudo apt-get install nano htop pwgen figlet unzip jq -y
     echo -e "${YELLOW}Packages complete...${NC}"
 }
 
@@ -142,10 +141,16 @@ EOF
 }
 
 function install_bins() {
-    echo -e "${YELLOW}Installing binaries...${NC}"
-    wget -qO- $WALLET_TAR | tar xv
-    sudo mv ~/raptoreum-2.0b-x86_64-linux-gnu/raptoreum* $COIN_PATH
-    rm -rf raptoreum-2.0b-x86_64-linux-gnu
+    echo -e "${YELLOW}Installing latest binaries...${NC}"
+    WALLET_TAR=$(curl -s "https://api.github.com/repos/Raptor3um/Raptoreum/releases" | jq -r '.[0].assets | .[] | select(.name|test("x86_64-linux.")) | .browser_download_url')
+    mkdir temp
+    case $WALLET_TAR in
+        *tar) curl -L $WALLET_TAR | tar x --strip=1 -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI $COIN_PATH;;
+        *tar.gz) curl -L $WALLET_TAR | tar xz --strip=1 -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI $COIN_PATH;;
+        *tar.xz) curl -L $WALLET_TAR | tar xJ --strip=1 -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI $COIN_PATH;;
+    esac
+    sudo chmod 755 ${COIN_PATH}/${COIN_NAME}*
+    rm -rf temp
 }
 
 function bootstrap() {
@@ -168,8 +173,29 @@ function bootstrap() {
 }
 
 function update_script() {
-    wget $UPDATE_SCRIPT
-    chmod +x $UPDATE_FILE
+    echo -e "${YELLOW}Creating a script to update binaries for future updates...${NC}"
+    touch $HOME/update.sh
+    cat << EOF > $HOME/update.sh
+#!/bin/bash
+WALLET_TAR=\$(curl -s "https://api.github.com/repos/Raptor3um/Raptoreum/releases" | jq -r '.[0].assets | .[] | select(.name|test("x86_64-linux.")) | .browser_download_url')
+COIN_NAME='raptoreum'
+COIN_DAEMON='raptoreumd'
+COIN_CLI='raptoreum-cli'
+COIN_PATH='/usr/local/bin'
+sudo systemctl stop \$COIN_NAME
+\$COIN_CLI stop > /dev/null 2>&1 && sleep 2
+sudo killall \$COIN_DAEMON > /dev/null 2>&1
+mkdir temp
+case \$WALLET_TAR in
+    *tar) curl -L \$WALLET_TAR | tar x --strip=1 -C ./temp; sudo mv ./temp/\$COIN_DAEMON ./temp/\$COIN_CLI \$COIN_PATH;;
+    *tar.gz) curl -L \$WALLET_TAR | tar xz --strip=1 -C ./temp; sudo mv ./temp/\$COIN_DAEMON ./temp/\$COIN_CLI \$COIN_PATH;;
+    *tar.xz) curl -L \$WALLET_TAR | tar xJ --strip=1 -C ./temp; sudo mv ./temp/\$COIN_DAEMON ./temp/\$COIN_CLI \$COIN_PATH;;
+esac
+rm -rf temp
+sudo chmod 755 \${COIN_PATH}/\${COIN_NAME}*
+sudo systemctl start \$COIN_NAME > /dev/null 2>&1
+EOF
+    sudo chmod +x update.sh
 }
 
 function install_sentinel() {
@@ -313,18 +339,21 @@ EOF
   basic_security
   start_daemon
   log_rotate
+  update_script
   
 printf "${BLUE}"
 figlet -t -k "RTM  SMARTNODES" 
 printf "${STOP}"
 
 echo -e "${YELLOW}================================================================================================"
-echo -e "${GREEN}PLEASE COMPLETE THE SETUP BY REGISTERING YOUR SMARTNODE${NC}"
+echo -e "PLEASE COMPLETE THE SETUP BY REGISTERING YOUR SMARTNODE${NC}"
 echo -e "${CYAN}COURTESY OF DK808 FROM ZEL AND ALTTANK ARMY${NC}"
 echo
-echo -e "${GREEN}Commands to manage $COIN_NAME service${NC}"
+echo -e "${YELLOW}Commands to manage $COIN_NAME service${NC}"
 echo -e "  TO START- ${CYAN}sudo systemctl start $COIN_NAME${NC}"
 echo -e "  TO STOP - ${CYAN}sudo systemctl stop $COIN_NAME${NC}"
 echo -e "  STATUS  - ${CYAN}sudo systemctl status $COIN_NAME${NC}"
 echo -e "In the event server ${RED}reboots${NC} daemon service will ${GREEN}auto-start${NC}"
+echo
+echo -e "${YELLOW)To update binaries when new ones are released enter ${SEA}./update.sh${NC}"
 echo -e "${YELLOW}================================================================================================${NC}"
