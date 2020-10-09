@@ -355,5 +355,5 @@ echo -e "  TO STOP - ${CYAN}sudo systemctl stop $COIN_NAME${NC}"
 echo -e "  STATUS  - ${CYAN}sudo systemctl status $COIN_NAME${NC}"
 echo -e "In the event server ${RED}reboots${NC} daemon service will ${GREEN}auto-start${NC}"
 echo
-echo -e "${YELLOW)To update binaries when new ones are released enter ${SEA}./update.sh${NC}"
+echo -e "${YELLOW}To update binaries when new ones are released enter ${SEA}./update.sh${NC}"
 echo -e "${YELLOW}================================================================================================${NC}"
