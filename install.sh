@@ -21,8 +21,12 @@ BLUE="\\033[38;5;27m"
 SEA="\\033[38;5;49m"
 GREEN='\033[1;32m'
 CYAN='\033[1;36m'
+BLINKRED='\033[1;31;5m'
 NC='\033[0m'
 STOP='\e[0m'
+
+#emoji codes
+X_POINT="${BLINKRED}\xE2\x9D\x97${NC}"
 
 #end of required details
 #
@@ -353,6 +357,9 @@ echo -e "  TO START- ${CYAN}sudo systemctl start $COIN_NAME${NC}"
 echo -e "  TO STOP - ${CYAN}sudo systemctl stop $COIN_NAME${NC}"
 echo -e "  STATUS  - ${CYAN}sudo systemctl status $COIN_NAME${NC}"
 echo -e "In the event server ${RED}reboots${NC} daemon service will ${GREEN}auto-start${NC}"
+echo
+echo -e "${X_POINT}${X_POINT} ${YELLOW}To use $COIN_CLI simply start command with $COIN_CLI" ${X_POINT}${X_POINT}
+echo -e "     ${YELLOW}E.g ${CYAN}$COIN_CLI getblockchaininfo${NC}"
 echo
 echo -e "${YELLOW}To update binaries when new ones are released enter ${SEA}./update.sh${NC}"
 echo -e "${YELLOW}================================================================================================${NC}"
