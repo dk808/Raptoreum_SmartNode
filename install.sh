@@ -3,7 +3,7 @@
 COIN_NAME='raptoreum'
 
 #wallet information
-BOOTSTRAP_ZIP='https://www.dropbox.com/s/vuvxnvnv7cy02hs/rtm-bootstrap.zip'
+BOOTSTRAP_ZIP='https://www.dropbox.com/s/hhxml2txus7dc79/rtm-bootstrap.zip'
 BOOTSTRAP_ZIPFILE='rtm-bootstrap.zip'
 CONFIG_DIR='.raptoreumcore'
 CONFIG_FILE='raptoreum.conf'
