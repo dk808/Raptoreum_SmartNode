@@ -7,7 +7,7 @@ BOOTSTRAP_ZIP='https://www.dropbox.com/s/hhxml2txus7dc79/rtm-bootstrap.zip'
 BOOTSTRAP_ZIPFILE='rtm-bootstrap.zip'
 CONFIG_DIR='.raptoreumcore'
 CONFIG_FILE='raptoreum.conf'
-PORT='19989'
+PORT='19979'
 SSHPORT='22'
 COIN_DAEMON='raptoreumd'
 COIN_CLI='raptoreum-cli'
@@ -133,13 +133,8 @@ daemon=1
 listen=1
 smartnodeblsprivkey=$smartnodeblsprivkey
 externalip=$WANIP
-addnode=45.63.5.61
-addnode=45.63.6.62
-addnode=45.133.203.10
-addnode=207.180.236.174
-addnode=152.44.40.67
-addnode=173.249.7.48
-addnode=167.86.76.90
+addnode=94.237.94.13
+addnode=209.151.154.214
 maxconnections=256
 EOF
 }
