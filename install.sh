@@ -3,14 +3,14 @@
 COIN_NAME='raptoreum'
 
 #wallet information
-BOOTSTRAP_ZIP='https://www.dropbox.com/s/hhxml2txus7dc79/rtm-bootstrap.zip'
-BOOTSTRAP_ZIPFILE='rtm-bootstrap.zip'
+BOOTSTRAP_TAR='https://www.dropbox.com/s/y885aysstdmro4n/rtm-bootstrap.tar.gz'
 CONFIG_DIR='.raptoreumcore'
 CONFIG_FILE='raptoreum.conf'
-PORT='19979'
+PORT='10226'
 SSHPORT='22'
 COIN_DAEMON='raptoreumd'
 COIN_CLI='raptoreum-cli'
+COIN_TX='raptoreum-tx'
 COIN_PATH='/usr/local/bin'
 USERNAME="$(whoami)"
 
@@ -34,7 +34,7 @@ X_POINT="${BLINKRED}\xE2\x9D\x97${NC}"
 echo -e "${YELLOW}==========================================================="
 echo -e 'RTM Smartnode Setup'
 echo -e "===========================================================${NC}"
-echo -e "${BLUE}Oct 2020, created by dk808${NC}"
+echo -e "${BLUE}Feb 2021, created and updated by dk808 from AltTank${NC}"
 echo -e
 echo -e "${CYAN}Node setup starting, press [CTRL-C] to cancel.${NC}"
 sleep 5
@@ -49,9 +49,8 @@ function wipe_clean() {
     sudo systemctl stop $COIN_NAME > /dev/null 2>&1 && sleep 2
     sudo $COIN_CLI stop > /dev/null 2>&1 && sleep 2
     sudo killall $COIN_DAEMON > /dev/null 2>&1
-    sudo rm /usr/local/bin/raptoreum* > /dev/null 2>&1 && sleep 1
-    sudo rm /usr/bin/raptoreum* > /dev/null 2>&1 && sleep 1
-    rm -rf $BOOTSTRAP_ZIPFILE
+    sudo rm /usr/local/bin/$COIN_NAME* > /dev/null 2>&1 && sleep 1
+    sudo rm /usr/bin/$COIN_NAME* > /dev/null 2>&1 && sleep 1
     rm -rf sentinel
 }
 
@@ -141,31 +140,17 @@ EOF
 
 function install_bins() {
     echo -e "${YELLOW}Installing latest binaries...${NC}"
-    WALLET_TAR=$(curl -s "https://api.github.com/repos/Raptor3um/Raptoreum/releases" | jq -r '.[0].assets | .[] | select(.name|test("x86_64-linux.")) | .browser_download_url')
+    WALLET_TAR=$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("ubuntu18.")) | .browser_download_url')
     mkdir temp
-    case $WALLET_TAR in
-        *tar) curl -L $WALLET_TAR | tar x --strip=1 -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI $COIN_PATH;;
-        *tar.gz) curl -L $WALLET_TAR | tar xz --strip=1 -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI $COIN_PATH;;
-        *tar.xz) curl -L $WALLET_TAR | tar xJ --strip=1 -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI $COIN_PATH;;
-    esac
+    curl -L $WALLET_TAR | tar xz -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI ./temp/$COIN_TX $COIN_PATH
     sudo chmod 755 ${COIN_PATH}/${COIN_NAME}*
     rm -rf temp
 }
 
 function bootstrap() {
     if whiptail --yesno "Would you like to bootstrap the chain?" 8 42; then
-        if [ -d $HOME/$CONFIG_DIR/blocks ]; then
-            rm -rf $HOME/$CONFIG_DIR/blocks $HOME/$CONFIG_DIR/chainstate $HOME/$CONFIG_DIR/llmq $HOME/$CONFIG_DIR/evodb
-            echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
-            wget $BOOTSTRAP_ZIP
-            unzip $BOOTSTRAP_ZIPFILE -d $HOME/$CONFIG_DIR
-            rm -rf $BOOTSTRAP_ZIPFILE
-        else
-            echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
-            wget $BOOTSTRAP_ZIP
-            unzip $BOOTSTRAP_ZIPFILE -d $HOME/$CONFIG_DIR
-            rm -rf $BOOTSTRAP_ZIPFILE
-        fi
+        echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
+        curl -L $BOOTSTRAP_TAR | tar xz -C $HOME/$CONFIG_DIR
     else
         echo "${YELLOW}Skipping bootstrap...${NC}"
     fi
@@ -176,25 +161,22 @@ function update_script() {
     touch $HOME/update.sh
     cat << EOF > $HOME/update.sh
 #!/bin/bash
-WALLET_TAR=\$(curl -s "https://api.github.com/repos/Raptor3um/Raptoreum/releases" | jq -r '.[0].assets | .[] | select(.name|test("x86_64-linux.")) | .browser_download_url')
+WALLET_TAR=\$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("ubuntu18.")) | .browser_download_url')
 COIN_NAME='raptoreum'
 COIN_DAEMON='raptoreumd'
 COIN_CLI='raptoreum-cli'
+COIN_TX='raptoreum-tx'
 COIN_PATH='/usr/local/bin'
 sudo systemctl stop \$COIN_NAME
 \$COIN_CLI stop > /dev/null 2>&1 && sleep 2
 sudo killall \$COIN_DAEMON > /dev/null 2>&1
 mkdir temp
-case \$WALLET_TAR in
-    *tar) curl -L \$WALLET_TAR | tar x --strip=1 -C ./temp; sudo mv ./temp/\$COIN_DAEMON ./temp/\$COIN_CLI \$COIN_PATH;;
-    *tar.gz) curl -L \$WALLET_TAR | tar xz --strip=1 -C ./temp; sudo mv ./temp/\$COIN_DAEMON ./temp/\$COIN_CLI \$COIN_PATH;;
-    *tar.xz) curl -L \$WALLET_TAR | tar xJ --strip=1 -C ./temp; sudo mv ./temp/\$COIN_DAEMON ./temp/\$COIN_CLI \$COIN_PATH;;
-esac
+curl -L \$WALLET_TAR | tar xz -C ./temp; sudo mv ./temp/\$COIN_DAEMON ./temp/\$COIN_CLI ./temp/\$COIN_TX \$COIN_PATH
 rm -rf temp
 sudo chmod 755 \${COIN_PATH}/\${COIN_NAME}*
 sudo systemctl start \$COIN_NAME > /dev/null 2>&1
 EOF
-    sudo chmod +x update.sh
+    sudo chmod 775 update.sh
 }
 
 function install_sentinel() {
@@ -235,7 +217,7 @@ User=$USERNAME
 Group=$USERNAME
 WorkingDirectory=/home/$USERNAME/$CONFIG_DIR/
 ExecStart=$COIN_PATH/$COIN_DAEMON -datadir=/home/$USERNAME/$CONFIG_DIR/ -conf=/home/$USERNAME/$CONFIG_DIR/$CONFIG_FILE -daemon
-ExecStop=-$COIN_PATH/$COIN_CLI stop
+ExecStop=$COIN_PATH/$COIN_CLI stop
 Restart=always
 RestartSec=3
 PrivateTmp=true
@@ -345,7 +327,7 @@ figlet -t -k "RTM  SMARTNODES"
 printf "${STOP}"
 
 echo -e "${YELLOW}================================================================================================"
-echo -e "${CYAN}COURTESY OF DK808 FROM ZEL AND ALTTANK ARMY${NC}"
+echo -e "${CYAN}COURTESY OF DK808 FROM ALTTANK ARMY${NC}"
 echo
 echo -e "${YELLOW}Commands to manage $COIN_NAME service${NC}"
 echo -e "  TO START- ${CYAN}sudo systemctl start $COIN_NAME${NC}"
