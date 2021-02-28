@@ -132,8 +132,12 @@ daemon=1
 listen=1
 smartnodeblsprivkey=$smartnodeblsprivkey
 externalip=$WANIP
-addnode=94.237.94.13
+addnode=47.151.7.226
 addnode=209.151.154.214
+addnode=69.140.2.230
+addnode=122.115.61.182
+addnode=66.165.237.58
+addnode=45.77.238.90
 maxconnections=256
 EOF
 }
