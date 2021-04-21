@@ -5,7 +5,9 @@ Script needs to be ran under a sudo user and not under root. It will install bin
 
 ## Installation
 Create a sudo user and run this under that sudo user. Script will exit if logged in as root.  
-Script will ask for BLS PrivKey(operatorSecret) that you get from the protx quick_setup/bls generate command. So have it ready. If opting to have script create Cron job you will need the protx hash you got from the protx quick_setup.
+Script will ask for BLS PrivKey(operatorSecret) that you get from the protx quick_setup/bls generate command. So have it ready.  
+If opting to have script create Cron job you will need the protx hash you got from the protx quick_setup.  
+Please check [Wiki](https://github.com/dk808/Raptoreum_SmartNode/wiki) for a detailed guide.
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/main/install.sh)
 ```

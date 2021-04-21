@@ -128,6 +128,7 @@ function create_conf() {
 rpcuser=$RPCUSER
 rpcpassword=$PASSWORD
 rpcallowip=127.0.0.1
+rpcbind=127.0.0.1
 port=$PORT
 server=1
 daemon=1
