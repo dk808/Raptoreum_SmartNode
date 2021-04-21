@@ -51,6 +51,8 @@ function wipe_clean() {
     sudo killall $COIN_DAEMON > /dev/null 2>&1
     sudo rm /usr/local/bin/$COIN_NAME* > /dev/null 2>&1 && sleep 1
     sudo rm /usr/bin/$COIN_NAME* > /dev/null 2>&1 && sleep 1
+    rm -rf $HOME/$CONFIG_DIR > /dev/null 2>&1 && sleep 1
+    rm update.sh check.sh > /dev/null 2>&1 && sleep 1
     rm -rf sentinel
 }
 
@@ -132,12 +134,8 @@ daemon=1
 listen=1
 smartnodeblsprivkey=$smartnodeblsprivkey
 externalip=$WANIP
-addnode=47.151.7.226
-addnode=209.151.154.214
-addnode=69.140.2.230
-addnode=122.115.61.182
-addnode=66.165.237.58
-addnode=45.77.238.90
+addnode=explorer.raptoreum.com
+addnode=raptor.mopsus.com
 maxconnections=256
 EOF
 }
@@ -307,6 +305,31 @@ EOF
     sudo chown root:root /etc/logrotate.d/rtmdebuglog
 }
 
+function cron_job() {
+    if whiptail --yesno "Would you like Cron to check on daemon's health every hour?" 8 63; then
+        PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
+        touch $HOME/check.sh
+        cat << EOF > $HOME/check.sh
+#!/bin/bash
+POSE_SCORE=\$(curl -s "https://explorer.raptoreum.com/api/protx?command=info&protxhash=${PROTX_HASH}" | jq -r '.state.PoSePenalty')
+if ((POSE_SCORE>0)); then
+    killall -9 raptoreumd
+    echo "\$(date)  Score is \${POSE_SCORE} so sent kill signal..."
+else
+    echo "\$(date)  Daemon seems ok..."
+fi
+EOF
+    sudo chmod 775 check.sh
+    crontab -l | grep -v "SHELL=/bin/bash" | crontab -
+    crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
+    crontab -l > tempcron
+    echo "SHELL=/bin/bash" >> tempcron
+    echo "0 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
+    crontab tempcron
+    rm tempcron
+    fi
+ }
+
 #
 #end of functions
 
@@ -322,6 +345,7 @@ EOF
   #install_sentinel
   create_service
   basic_security
+  cron_job
   start_daemon
   log_rotate
   update_script
