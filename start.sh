@@ -37,8 +37,9 @@ EOF
 fi
 
 # Create script for HEALTHCHECK
-touch healthcheck.sh
-cat << EOF > healthcheck.sh
+if [ ! -e /usr/local/bin/healthcheck.sh ]; then
+  touch healthcheck.sh
+  cat << EOF > healthcheck.sh
 #!/bin/bash
 
 POSE_SCORE=\$(curl -s "https://explorer.raptoreum.com/api/protx?command=info&protxhash=${PROTX_HASH}" | jq -r '.state.PoSePenalty')
@@ -50,7 +51,8 @@ else
   echo "Smartnode seems to be healthy..."
 fi
 EOF
-chmod 755 healthcheck.sh
-mv healthcheck.sh /usr/local/bin
+  chmod 755 healthcheck.sh
+  mv healthcheck.sh /usr/local/bin
+fi
 
 exec $EXECUTABLE -datadir=$DIR -conf=$FILE

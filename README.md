@@ -33,7 +33,7 @@ docker run \
   -ti \
   --rm \
   -v /root/smartnode:/raptoreum \
-  dk808/rtm-smartnode:healthcheck \
+  dk808/rtm-smartnode:latest \
   bootstrap.sh
 ```  
 | ENV VARIABLES |                         DESCRIPTION                         |
@@ -54,8 +54,7 @@ docker run \
   -e PROTX_HASH=d32c998e8155265900b590813e0e85ad7998e4f45b03e1ab722ec9be782b8eea \
   -v /root/smartnode:/raptoreum \
   --restart=unless-stopped \
-  dk808/rtm-smartnode:healthcheck
+  dk808/rtm-smartnode:latest
   ```
-You could also pull latest image but recommend using healthcheck image to help with PoSe bans.  
 __Do not forget to open port 10226__  
 > ℹ Info: You could ask support questions in [Raptoreum's Discord](https://discord.gg/wqgcxT3Mgh)
