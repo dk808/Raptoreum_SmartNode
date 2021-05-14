@@ -312,7 +312,12 @@ function cron_job() {
         touch $HOME/check.sh
         cat << EOF > $HOME/check.sh
 #!/bin/bash
-POSE_SCORE=\$(curl -s "https://explorer.raptoreum.com/api/protx?command=info&protxhash=${PROTX_HASH}" | jq -r '.state.PoSePenalty')
+if [[ \$(curl -sIw '%{http_code}' -o /dev/null https://explorer.raptoreum.com/) == 200 ]]; then
+    URL='https://explorer.raptoreum.com/'
+else
+    URL='https://raptor.mopsus.com/'
+fi
+POSE_SCORE=\$(curl -s "\${URL}api/protx?command=info&protxhash=${PROTX_HASH}" | jq -r '.state.PoSePenalty')
 if ((POSE_SCORE>0)); then
     killall -9 raptoreumd
     echo "\$(date)  Score is \${POSE_SCORE} so sent kill signal..."
