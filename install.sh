@@ -330,7 +330,7 @@ EOF
     crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
     crontab -l > tempcron
     echo "SHELL=/bin/bash" >> tempcron
-    echo "0 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
+    echo "*/30 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
     crontab tempcron
     rm tempcron
     fi
