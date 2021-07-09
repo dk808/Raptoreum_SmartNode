@@ -155,7 +155,7 @@ function bootstrap() {
         echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
         curl -L $BOOTSTRAP_TAR | tar xz -C $HOME/$CONFIG_DIR
     else
-        echo "${YELLOW}Skipping bootstrap...${NC}"
+        echo -e "${YELLOW}Skipping bootstrap...${NC}"
     fi
 }
 
@@ -307,34 +307,120 @@ EOF
 }
 
 function cron_job() {
-    if whiptail --yesno "Would you like Cron to check on daemon's health every hour?" 8 63; then
+    if whiptail --yesno "Would you like Cron to check on daemon's health every 15 minutes?" 8 63; then
         PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
         touch $HOME/check.sh
         cat << EOF > $HOME/check.sh
 #!/bin/bash
+function read_val () {
+  VAL=\$(cat \${1})
+  if [[ -z \${VAL} ]]; then
+    VAL=0
+  fi
+  echo \${VAL}
+}
+
+# Pick explorer for node and height check.
 if [[ \$(curl -sIw '%{http_code}' -o /dev/null https://explorer.raptoreum.com/) == 200 ]]; then
-    URL='https://explorer.raptoreum.com/'
+  URL='https://explorer.raptoreum.com/'
 else
-    URL='https://raptor.mopsus.com/'
+  URL='https://raptor.mopsus.com/'
 fi
+# Check if the Node PoSe score is changing.
 POSE_SCORE=\$(curl -s "\${URL}api/protx?command=info&protxhash=${PROTX_HASH}" | jq -r '.state.PoSePenalty')
-if ((POSE_SCORE>0)); then
+PREV_SCORE=\$(read_val "/tmp/pose_score")
+touch /tmp/pose_score && echo \${POSE_SCORE} >/tmp/pose_score
+if (( POSE_SCORE > 0 )); then
+  # Check PoSe score changes.
+  if (( POSE_SCORE > PREV_SCORE )); then
     killall -9 raptoreumd
-    echo "\$(date)  Score is \${POSE_SCORE} so sent kill signal..."
-else
-    echo "\$(date)  Daemon seems ok..."
+    echo "\$(date)  Score increased from \${PREV_SCORE} to \${POSE_SCORE} so sent kill signal..."
+  elif (( POSE_SCORE < PREV_SCORE )); then
+    echo "\$(date)  Score decreased from \${PREV_SCORE} to \${POSE_SCORE} so wait..."
+  fi
+  # POSE_SCORE == PREV_SCORE is gonna force check the node block height.
+fi
+# PoSe seems fine or did not change. Check local block height.
+NETWORK_HEIGHT=\$(curl -s "\${URL}api/getblockcount")
+PREV_HEIGHT=\$(read_val /tmp/height)
+LOCAL_HEIGHT=\$(\$RAPTOREUM_CLI getblockcount)
+touch /tmp/height && echo \${LOCAL_HEIGHT} >/tmp/height
+if (( POSE_SCORE == PREV_SCORE )); then
+  echo -n "\$(date)  Node height (\${LOCAL_HEIGHT}/\${NETWORK_HEIGHT})."
+  # Block height did not change. Is it stuck?. Compare with netowrk block height. Allow some slippage.
+  if (( NETWORK_HEIGHT - LOCAL_HEIGHT > 10 )); then
+    # Check if height is increasing. Maybe it is just syncing.
+    if (( LOCAL_HEIGHT > PREV_HEIGHT )); then
+      echo " Increased from \${PREV_HEIGHT} -> \${LOCAL_HEIGHT} so wait..."
+    elif (( LOCAL_HEIGHT > 0 )); then
+      killall -9 raptoreumd
+      echo " Height difference is more than 10 blocks behind the network so sent kill signal..."
+    fi
+  else
+    echo " Daemon seems ok..."
+  fi
 fi
 EOF
-    sudo chmod 775 check.sh
+    sudo chmod 775 $HOME/check.sh
     crontab -l | grep -v "SHELL=/bin/bash" | crontab -
+    crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
     crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
     crontab -l > tempcron
     echo "SHELL=/bin/bash" >> tempcron
-    echo "*/30 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
+    echo "RAPTOREUM_CLI=$(which $COIN_CLI)" >> tempcron
+    echo "*/15 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
     crontab tempcron
     rm tempcron
+    rm -f /tmp/height 2>/dev/null
+    rm -f /tmp/pose_score 2>/dev/null
     fi
- }
+}
+
+function create_motd() {
+  touch $HOME/99-smartnode
+  sudo cat << EOF >$HOME/99-smartnode
+#!/bin/bash
+COIN_NAME='raptoreum'
+COIN_CLI='raptoreum-cli'
+
+#color codes
+RED='\033[1;31m'
+YELLOW='\033[1;33m'
+BLUE="\\033[38;5;27m"
+SEA="\\033[38;5;49m"
+GREEN='\033[1;32m'
+CYAN='\033[1;36m'
+BLINKRED='\033[1;31;5m'
+NC='\033[0m'
+STOP='\e[0m'
+X_POINT="\${BLINKRED}\xE2\x9D\x97\${NC}"
+
+printf "\${BLUE}"
+figlet -t -k "RTM  SMARTNODES"
+printf "\${STOP}"
+
+echo -e "\${YELLOW}================================================================================================"
+echo -e "\${CYAN}COURTESY OF DK808 FROM ALTTANK ARMY\${NC}"
+echo
+echo -e "\${YELLOW}Commands to manage \$COIN_NAME service\${NC}"
+echo -e "  TO START- \${CYAN}sudo systemctl start \$COIN_NAME\${NC}"
+echo -e "  TO STOP - \${CYAN}sudo systemctl stop \$COIN_NAME\${NC}"
+echo -e "  STATUS  - \${CYAN}sudo systemctl status \$COIN_NAME\${NC}"
+echo -e "In the event server \${RED}reboots\${NC} daemon service will \${GREEN}auto-start\${NC}"
+echo
+echo -e "\${X_POINT}\${X_POINT} \${YELLOW}To use \$COIN_CLI simply start command with \$COIN_CLI" \${X_POINT}\${X_POINT}
+echo -e "     \${YELLOW}E.g \${CYAN}\$COIN_CLI getblockchaininfo\${NC}"
+echo -e "     \${YELLOW}E.g \${CYAN}\$COIN_CLI smartnode status\${NC}"
+echo
+echo -e "\${YELLOW}To update binaries when new ones are released enter \${SEA}./update.sh\${NC}"
+echo -e "\${YELLOW}================================================================================================\${NC}"
+EOF
+  sudo chmod 775 $HOME/99-smartnode
+  bash $HOME/99-smartnode
+  sudo cp $HOME/99-smartnode /etc/update-motd.d 2>/dev/null
+  sudo chown root:root /etc/update-motd.d 2>/dev/null
+  rm $HOME/99-smartnode
+}
 
 #
 #end of functions
@@ -351,26 +437,8 @@ EOF
   #install_sentinel
   create_service
   basic_security
-  cron_job
   start_daemon
+  cron_job
   log_rotate
   update_script
-  
-printf "${BLUE}"
-figlet -t -k "RTM  SMARTNODES" 
-printf "${STOP}"
-
-echo -e "${YELLOW}================================================================================================"
-echo -e "${CYAN}COURTESY OF DK808 FROM ALTTANK ARMY${NC}"
-echo
-echo -e "${YELLOW}Commands to manage $COIN_NAME service${NC}"
-echo -e "  TO START- ${CYAN}sudo systemctl start $COIN_NAME${NC}"
-echo -e "  TO STOP - ${CYAN}sudo systemctl stop $COIN_NAME${NC}"
-echo -e "  STATUS  - ${CYAN}sudo systemctl status $COIN_NAME${NC}"
-echo -e "In the event server ${RED}reboots${NC} daemon service will ${GREEN}auto-start${NC}"
-echo
-echo -e "${X_POINT}${X_POINT} ${YELLOW}To use $COIN_CLI simply start command with $COIN_CLI" ${X_POINT}${X_POINT}
-echo -e "     ${YELLOW}E.g ${CYAN}$COIN_CLI getblockchaininfo${NC}"
-echo
-echo -e "${YELLOW}To update binaries when new ones are released enter ${SEA}./update.sh${NC}"
-echo -e "${YELLOW}================================================================================================${NC}"
+  create_motd
