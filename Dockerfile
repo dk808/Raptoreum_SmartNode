@@ -30,7 +30,7 @@ RUN rtm-bins.sh
 EXPOSE 10226
 
 # Use healthcheck to deal with hanging issues and prevent pose bans
-HEALTHCHECK --start-period=10m --interval=30m --retries=3 --timeout=10s \
+HEALTHCHECK --start-period=10m --interval=15m --retries=3 --timeout=10s \
   CMD healthcheck.sh
 
 CMD start.sh
