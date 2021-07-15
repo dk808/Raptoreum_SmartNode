@@ -311,7 +311,7 @@ function cron_job() {
     if whiptail --yesno "Would you like Cron to check on daemon's health every 15 minutes?" 8 63; then
       PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
       cat <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/main/check.sh) >$HOME/check.sh 
-      sed -i "s/#NODE_PROTX=/NODE_PROTX=\"${NODE_PROTX}\"/g" $HOME/check.sh
+      sed -i "s/#NODE_PROTX=/NODE_PROTX=\"${PROTX_HASH}\"/g" $HOME/check.sh
       sudo chmod 775 $HOME/check.sh
       crontab -l | grep -v "SHELL=/bin/bash" | crontab -
       crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
