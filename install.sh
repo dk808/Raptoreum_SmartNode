@@ -313,12 +313,14 @@ function cron_job() {
       sudo chmod 775 $HOME/check.sh
       crontab -l | grep -v "SHELL=/bin/bash" | crontab -
       crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
-      crontab -l | grep -v "NODE_PROTX=$(PROTX_HASH)" | crontab -
+      crontab -l | grep -v "NODE_PROTX=$PROTX_HASH" | crontab -
+      crontab -l | grep -v "HOME=$HOME" | crontab -
       crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
       crontab -l > tempcron
       echo "SHELL=/bin/bash" >> tempcron
       echo "RAPTOREUM_CLI=$(which $COIN_CLI)" >> tempcron
-      echo "NODE_PROTX=$(PROTX_HASH)" >> tempcron
+      echo "NODE_PROTX=$PROTX_HASH" >> tempcron
+      echo "HOME=$HOME" >> tempcron
       echo "*/15 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
       crontab tempcron
       rm tempcron
@@ -327,8 +329,9 @@ function cron_job() {
       rm -f /tmp/was_stuck 2>/dev/null
       rm -f /tmp/prev_stuck 2>/dev/null
 
-      sed -i 'NODE_PROTX=/d' $HOME/.bashrc
-      echo "NODE_PROTX=$(PROTX_HASH)" >> $HOME/.bashrc
+      # Add PROTX to .bashrc in case user wants to run it manually.
+      sed -i '/NODE_PROTX=/d' $HOME/.bashrc
+      echo "export NODE_PROTX=$PROTX_HASH" >> $HOME/.bashrc
       source $HOME/.bashrc
     fi
 }

@@ -9,13 +9,23 @@ LOCAL_HEIGHT=0
 # They should also be added into .bashrc for user use.
 #NODE_PROTX       -> PROTX of the node in question.
 #RAPTOREUM_CLI    -> Path to the raptoreum-cli
+#CONFIG_DIR       -> Path to "$HOME/.raptoreumcore/"
 
 # Add your NODE_PROTX here if you forgot or provided wrong hash during node
 # installation.
 #NODE_PROTX=
 
+# Prepare some variables that can be set if the user is runing the script
+# manually but are set in cron job enviroment.
+if [[ -z $RAPTOREUM_CLI ]]; then
+  RAPTOREUM_CLI=$(which raptoreum-cli)
+fi
+if [[ -z $CONFIG_DIR ]]; then
+  CONFIG_DIR="$HOME/.raptoreumcore/"
+fi
+
 function GetNumber () {
-  if [[ ${1} =~ '^[+-]?[0-9]+([.][0-9]+)?$' ]]; then
+  if [[ ${1} =~ ^[+-]?[0-9]+([.][0-9]+)?$ ]]; then
     echo "${1}"
   else
     echo "-1"
@@ -29,11 +39,11 @@ function ReadValue () {
 # Allow read anything from CLI with $@ arguments. Timeout after 300s.
 function ReadCli () {
   # This should just echo (return) value with standard stdout.
-  $(${RAPTOREUM_CLI} "$@") &
-  PID=$?
+  ${RAPTOREUM_CLI} $@ &
+  PID=$!
   for i in {0..300}; do
     sleep 1
-    if ! ps --pid $PID; then
+    if ! ps --pid ${PID} 1>/dev/null; then
       # PID ended. Just exit the function.
       return
     fi
@@ -80,15 +90,15 @@ function CheckPoSe () {
 
 function CheckBlockHeight () {
   # Check local block height.
-  NETWORK_HEIGHT=$(curl -s "${URL[$URL_ID]}api/getblockcount")
+  NETWORK_HEIGHT=$(GetNumber $(curl -s "${URL[$URL_ID]}api/getblockcount"))
   if (( NETWORK_HEIGHT < 0 )); then
     URL_ID=$(( (URL_ID + 1) % 2 ))
-    NETWORK_HEIGHT=$(curl -s "${URL[$URL_ID]}api/getblockcount")
+    NETWORK_HEIGHT=$(GetNumber $(curl -s "${URL[$URL_ID]}api/getblockcount"))
   fi
   PREV_HEIGHT=$(ReadValue "/tmp/height")
-  LOCAL_HEIGHT=$(GetNumber $(ReadCli getblockcount))
+  LOCAL_HEIGHT=$(GetNumber "$(ReadCli getblockcount)")
   echo ${LOCAL_HEIGHT} >/tmp/height
-  if (( POSE_SCORE == PREV_SCORE )); then
+  if [[ $POSE_SCORE -eq $PREV_SCORE || $PREV_SCORE -eq -1 ]]; then
     echo -n "$(date)  Node height (${LOCAL_HEIGHT}/${NETWORK_HEIGHT})."
     # Block height did not change. Is it stuck?. Compare with netowrk block height. Allow some slippage.
     if [[ $((NETWORK_HEIGHT - LOCAL_HEIGHT)) -gt 5 || $NETWORK_HEIGHT == -1 ]]; then
@@ -124,12 +134,11 @@ function BootstrapChain () {
   echo "0" >/tmp/prev_stuck
   
   BOOTSTRAP_TAR='https://www.dropbox.com/s/y885aysstdmro4n/rtm-bootstrap.tar.gz'
-  CONFIG_DIR='~/.raptoreumcore/'
   
   echo "$(date)  Download and prepare rtm-bootstrap."
   rm -rf /tmp/bootstrap 2>/dev/null
-  mkdir /tmp/bootstrap 2>/dev/null
-  curl -L "$BOOTSTRAP_TAR" | tar xz -C /tmp/bootstrap
+  mkdir -p /tmp/bootstrap 2>/dev/null
+  curl -L "$BOOTSTRAP_TAR" | tar xz -C /tmp/bootstrap/
   
   echo "$(date)  Kill raptoreumd."
   killall -9 raptoreumd 2>/dev/null
@@ -140,7 +149,7 @@ function BootstrapChain () {
   # Try to kill raptoreumd again in case it went back up.
   killall -9 raptoreumd 2>/dev/null
   echo "$(date)  Insert Bootstrap data."
-  mv tmp/bootstrap/{blocks,chainstate,evodb,llmq} ${CONFIG_DIR}/
+  mv /tmp/bootstrap/{blocks,chainstate,evodb,llmq} ${CONFIG_DIR}/
   
   rm -rf /tmp/bootstrap 2>/dev/null
 }
@@ -149,10 +158,10 @@ function BootstrapChain () {
 function ReconsiderBlock () {
   if [[ $LOCAL_HEIGHT -gt 0 && $LOCAL_HEIGHT -gt $(ReadValue "/tmp/prev_stuck") ]]; then
     # Node is still responsive but is stuck on the wrong branch/fork.
-    RECONSIDER=$(( LOCAL_HEIGHT - 5 ))
-    HASH=$(ReadCli getclockhash ${RECONSIDER})
+    RECONSIDER=$(( LOCAL_HEIGHT - 10 ))
+    HASH=$(ReadCli getblockhash ${RECONSIDER})
     if [[ ${HASH} != "-1" ]]; then
-      echo "$(date)  Reconsider chain from 5 blocks before current one ${RECONSIDER}"
+      echo "$(date)  Reconsider chain from 10 blocks before current one ${RECONSIDER}"
       if [[ $(ReadCli reconsiderblock "${HASH}") != "-1" ]]; then
         echo ${RECONSIDER} >/tmp/height
         echo ${LOCAL_HEIGHT} >/tmp/prev_stuck
