@@ -2,14 +2,16 @@
 # URLs for raptoreum explorers. Main and backup one.
 URL=( 'https://explorer.raptoreum.com/' 'https://raptor.mopsus.com/' )
 URL_ID=0
+
+BOOTSTRAP_TAR='https://www.dropbox.com/s/y885aysstdmro4n/rtm-bootstrap.tar.gz'
+
 POSE_SCORE=0
 PREV_SCORE=0
 LOCAL_HEIGHT=0
 # Variables provided by cron job enviroment variable.
 # They should also be added into .bashrc for user use.
-#NODE_PROTX       -> PROTX of the node in question.
 #RAPTOREUM_CLI    -> Path to the raptoreum-cli
-#CONFIG_DIR       -> Path to "$HOME/.raptoreumcore/"
+#CONFIG_DIR/HOME  -> Path to "$HOME/.raptoreumcore/"
 
 # Add your NODE_PROTX here if you forgot or provided wrong hash during node
 # installation.
@@ -20,7 +22,11 @@ LOCAL_HEIGHT=0
 if [[ -z $RAPTOREUM_CLI ]]; then
   RAPTOREUM_CLI=$(which raptoreum-cli)
 fi
+
 if [[ -z $CONFIG_DIR ]]; then
+  if [[ -z $HOME ]]; then
+    HOME="/home/$USER/"
+  fi
   CONFIG_DIR="$HOME/.raptoreumcore/"
 fi
 
@@ -63,11 +69,11 @@ function CheckPoSe () {
       POSE_SCORE=$(GetNumber $(curl -s "${URL[$URL_ID]}api/protx?command=info&protxhash=${NODE_PROTX}" | jq -r '.state.PoSePenalty'))
     fi
   else
-    echo "$(date)  Your NODE_PROTX is empty. Please reinitialize the node again or add it in line #15 of check.sh script."
+    echo "$(date)  Your NODE_PROTX is empty. Please reinitialize the node again or add it in line #19 of check.sh script."
   fi
   if (( $POSE_SCORE == -1 )); then
     echo "$(date)  Could not get PoSe score for the node. It is possible both explorers are down."
-    echo "$(date)  If it happens a lot, please insert your protx hash in line #15 of check.sh script."
+    echo "$(date)  If it happens a lot, please insert your NODE_PROTX hash in line #19 of check.sh script."
   fi
   PREV_SCORE=$(ReadValue "/tmp/pose_score")
   echo ${POSE_SCORE} >/tmp/pose_score
@@ -76,12 +82,12 @@ function CheckPoSe () {
   if (( POSE_SCORE > 0 )); then
     if (( POSE_SCORE > PREV_SCORE )); then
       killall -9 raptoreumd
-      echo "$(date)  Score increased from ${PREV_SCORE} to ${POSE_SCORE} so sent kill signal..."
+      echo "$(date)  Score increased from ${PREV_SCORE} to ${POSE_SCORE}. Send kill signal..."
       echo "1" >/tmp/was_stuck
-      # Do not check node height after killing raptoreumd.
+      # Do not check node height after killing raptoreumd it is sure to be stuck.
       exit
     elif (( POSE_SCORE < PREV_SCORE )); then
-      echo "$(date)  Score decreased from ${PREV_SCORE} to ${POSE_SCORE} so wait..."
+      echo "$(date)  Score decreased from ${PREV_SCORE} to ${POSE_SCORE}. Wait..."
       rm /tmp/was_stuck 2>/dev/null
     fi
     # POSE_SCORE == PREV_SCORE is gonna force check the node block height.
@@ -105,19 +111,25 @@ function CheckBlockHeight () {
       if (( LOCAL_HEIGHT > PREV_HEIGHT )); then
         # Node is still syncing?
         rm /tmp/was_stuck 2>/dev/null
-        echo " Increased from ${PREV_HEIGHT} -> ${LOCAL_HEIGHT} so wait..."
+        echo " Increased from ${PREV_HEIGHT} -> ${LOCAL_HEIGHT}. Wait..."
       elif [[ $LOCAL_HEIGHT -gt 0 && $(ReadValue "/tmp/was_stuck") -lt 0 ]]; then
         # Node is behind the network height and it is first attempt at unstucking.
         # If LOCAL_HEIGHT is >0 it means that we were able to read from the cli
         # but the height did not change compared to previous check.
         killall -9 raptoreumd
         echo "1" >/tmp/was_stuck
-        echo " Height difference is more than 5 blocks behind the network so sent kill signal..."
+        echo " Height difference is more than 5 blocks behind the network. Send kill signal..."
+      elif [[ $(ReadValue "/tmp/was_stuck") -lt 0 ]]; then
+        # Node was not able to respond. It is probably stuck but try to restart
+        # it once before trying to bootstrap or restore it.
+        killall -9 raptoreumd
+        echo "1" >/tmp/was_stuck
+        echo " Node was unresponsive for the first time. Send kill signal..."
       else
         # Node is most probably very stuck and if trying to sync wrong chain branch.
         # This meand simple raptoreumd kill will not help and we need to
         # force unstuck by bootstrapping / resyncing the chain again.
-        echo " Node seems to be hardstuck and is trying to sync forked chain so force unstuck..."
+        echo " Node seems to be hardstuck and is trying to sync forked chain. Try to force unstuck..."
         return 1
       fi
     else
@@ -132,9 +144,7 @@ function BootstrapChain () {
   echo "$(date)  Re-Bootstrap the node chain."
   echo "0" >/tmp/height
   echo "0" >/tmp/prev_stuck
-  
-  BOOTSTRAP_TAR='https://www.dropbox.com/s/y885aysstdmro4n/rtm-bootstrap.tar.gz'
-  
+
   echo "$(date)  Download and prepare rtm-bootstrap."
   rm -rf /tmp/bootstrap 2>/dev/null
   mkdir -p /tmp/bootstrap 2>/dev/null
@@ -152,23 +162,26 @@ function BootstrapChain () {
   mv /tmp/bootstrap/{blocks,chainstate,evodb,llmq} ${CONFIG_DIR}/
   
   rm -rf /tmp/bootstrap 2>/dev/null
+  echo "$(date)  Bootstrap complete."
 }
 
 # This should force unstuck the local node.
 function ReconsiderBlock () {
+  # If raptoreum-cli is responsive and it is stuck in the different place than before.
   if [[ $LOCAL_HEIGHT -gt 0 && $LOCAL_HEIGHT -gt $(ReadValue "/tmp/prev_stuck") ]]; then
     # Node is still responsive but is stuck on the wrong branch/fork.
     RECONSIDER=$(( LOCAL_HEIGHT - 10 ))
     HASH=$(ReadCli getblockhash ${RECONSIDER})
     if [[ ${HASH} != "-1" ]]; then
-      echo "$(date)  Reconsider chain from 10 blocks before current one ${RECONSIDER}"
-      if [[ $(ReadCli reconsiderblock "${HASH}") != "-1" ]]; then
+      echo "$(date)  Reconsider chain from 10 blocks before current one ${RECONSIDER}."
+      if [[ -z $(ReadCli reconsiderblock "${HASH}") ]]; then
         echo ${RECONSIDER} >/tmp/height
         echo ${LOCAL_HEIGHT} >/tmp/prev_stuck
         return 0
       fi
     fi
   fi
+  # raptoreum-cli is/was unresponsive in at least 1 step
   return 1
 }
 

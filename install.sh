@@ -34,7 +34,8 @@ X_POINT="${BLINKRED}\xE2\x9D\x97${NC}"
 echo -e "${YELLOW}==========================================================="
 echo -e 'RTM Smartnode Setup'
 echo -e "===========================================================${NC}"
-echo -e "${BLUE}Feb 2021, created and updated by dk808 from AltTank${NC}"
+echo -e "${BLUE}July 2021, created and updated by dk808 from AltTank${NC}"
+echo -e "${BLUE}With Smartnode healthcheck by Delgon${NC}"
 echo -e
 echo -e "${CYAN}Node setup starting, press [CTRL-C] to cancel.${NC}"
 sleep 5
@@ -309,17 +310,16 @@ EOF
 function cron_job() {
     if whiptail --yesno "Would you like Cron to check on daemon's health every 15 minutes?" 8 63; then
       PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
-      cat <(curl -s https://raw.githubusercontent.com/michal-zurkowski/Raptoreum_Smartnode/main/check.sh) >$HOME/check.sh 
+      cat <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/main/check.sh) >$HOME/check.sh 
+      sed -i "s/#NODE_PROTX=/NODE_PROTX=\"${NODE_PROTX}\"/g" $HOME/check.sh
       sudo chmod 775 $HOME/check.sh
       crontab -l | grep -v "SHELL=/bin/bash" | crontab -
       crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
-      crontab -l | grep -v "NODE_PROTX=$PROTX_HASH" | crontab -
       crontab -l | grep -v "HOME=$HOME" | crontab -
       crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
       crontab -l > tempcron
       echo "SHELL=/bin/bash" >> tempcron
       echo "RAPTOREUM_CLI=$(which $COIN_CLI)" >> tempcron
-      echo "NODE_PROTX=$PROTX_HASH" >> tempcron
       echo "HOME=$HOME" >> tempcron
       echo "*/15 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
       crontab tempcron
@@ -328,11 +328,6 @@ function cron_job() {
       rm -f /tmp/pose_score 2>/dev/null
       rm -f /tmp/was_stuck 2>/dev/null
       rm -f /tmp/prev_stuck 2>/dev/null
-
-      # Add PROTX to .bashrc in case user wants to run it manually.
-      sed -i '/NODE_PROTX=/d' $HOME/.bashrc
-      echo "export NODE_PROTX=$PROTX_HASH" >> $HOME/.bashrc
-      source $HOME/.bashrc
     fi
 }
 
@@ -361,6 +356,7 @@ printf "\${STOP}"
 
 echo -e "\${YELLOW}================================================================================================"
 echo -e "\${CYAN}COURTESY OF DK808 FROM ALTTANK ARMY\${NC}"
+echo -e "\${CYAN}Smartnode healthcheck by Delgon\${NC}"
 echo
 echo -e "\${YELLOW}Commands to manage \$COIN_NAME service\${NC}"
 echo -e "  TO START- \${CYAN}sudo systemctl start \$COIN_NAME\${NC}"
