@@ -308,71 +308,28 @@ EOF
 
 function cron_job() {
     if whiptail --yesno "Would you like Cron to check on daemon's health every 15 minutes?" 8 63; then
-        PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
-        touch $HOME/check.sh
-        cat << EOF > $HOME/check.sh
-#!/bin/bash
-function read_val () {
-  VAL=\$(cat \${1})
-  if [[ -z \${VAL} ]]; then
-    VAL=0
-  fi
-  echo \${VAL}
-}
+      PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
+      cat <(curl -s https://raw.githubusercontent.com/michal-zurkowski/Raptoreum_Smartnode/main/check.sh) >$HOME/check.sh 
+      sudo chmod 775 $HOME/check.sh
+      crontab -l | grep -v "SHELL=/bin/bash" | crontab -
+      crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
+      crontab -l | grep -v "NODE_PROTX=$(PROTX_HASH)" | crontab -
+      crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
+      crontab -l > tempcron
+      echo "SHELL=/bin/bash" >> tempcron
+      echo "RAPTOREUM_CLI=$(which $COIN_CLI)" >> tempcron
+      echo "NODE_PROTX=$(PROTX_HASH)" >> tempcron
+      echo "*/15 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
+      crontab tempcron
+      rm tempcron
+      rm -f /tmp/height 2>/dev/null
+      rm -f /tmp/pose_score 2>/dev/null
+      rm -f /tmp/was_stuck 2>/dev/null
+      rm -f /tmp/prev_stuck 2>/dev/null
 
-# Pick explorer for node and height check.
-if [[ \$(curl -sIw '%{http_code}' -o /dev/null https://explorer.raptoreum.com/) == 200 ]]; then
-  URL='https://explorer.raptoreum.com/'
-else
-  URL='https://raptor.mopsus.com/'
-fi
-# Check if the Node PoSe score is changing.
-POSE_SCORE=\$(curl -s "\${URL}api/protx?command=info&protxhash=${PROTX_HASH}" | jq -r '.state.PoSePenalty')
-PREV_SCORE=\$(read_val "/tmp/pose_score")
-touch /tmp/pose_score && echo \${POSE_SCORE} >/tmp/pose_score
-if (( POSE_SCORE > 0 )); then
-  # Check PoSe score changes.
-  if (( POSE_SCORE > PREV_SCORE )); then
-    killall -9 raptoreumd
-    echo "\$(date)  Score increased from \${PREV_SCORE} to \${POSE_SCORE} so sent kill signal..."
-  elif (( POSE_SCORE < PREV_SCORE )); then
-    echo "\$(date)  Score decreased from \${PREV_SCORE} to \${POSE_SCORE} so wait..."
-  fi
-  # POSE_SCORE == PREV_SCORE is gonna force check the node block height.
-fi
-# PoSe seems fine or did not change. Check local block height.
-NETWORK_HEIGHT=\$(curl -s "\${URL}api/getblockcount")
-PREV_HEIGHT=\$(read_val /tmp/height)
-LOCAL_HEIGHT=\$(\$RAPTOREUM_CLI getblockcount)
-touch /tmp/height && echo \${LOCAL_HEIGHT} >/tmp/height
-if (( POSE_SCORE == PREV_SCORE )); then
-  echo -n "\$(date)  Node height (\${LOCAL_HEIGHT}/\${NETWORK_HEIGHT})."
-  # Block height did not change. Is it stuck?. Compare with netowrk block height. Allow some slippage.
-  if (( NETWORK_HEIGHT - LOCAL_HEIGHT > 10 )); then
-    # Check if height is increasing. Maybe it is just syncing.
-    if (( LOCAL_HEIGHT > PREV_HEIGHT )); then
-      echo " Increased from \${PREV_HEIGHT} -> \${LOCAL_HEIGHT} so wait..."
-    elif (( LOCAL_HEIGHT > 0 )); then
-      killall -9 raptoreumd
-      echo " Height difference is more than 10 blocks behind the network so sent kill signal..."
-    fi
-  else
-    echo " Daemon seems ok..."
-  fi
-fi
-EOF
-    sudo chmod 775 $HOME/check.sh
-    crontab -l | grep -v "SHELL=/bin/bash" | crontab -
-    crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
-    crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
-    crontab -l > tempcron
-    echo "SHELL=/bin/bash" >> tempcron
-    echo "RAPTOREUM_CLI=$(which $COIN_CLI)" >> tempcron
-    echo "*/15 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
-    crontab tempcron
-    rm tempcron
-    rm -f /tmp/height 2>/dev/null
-    rm -f /tmp/pose_score 2>/dev/null
+      sed -i 'NODE_PROTX=/d' $HOME/.bashrc
+      echo "NODE_PROTX=$(PROTX_HASH)" >> $HOME/.bashrc
+      source $HOME/.bashrc
     fi
 }
 
