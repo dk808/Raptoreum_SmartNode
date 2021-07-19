@@ -62,19 +62,22 @@ function ReadCli () {
 function CheckPoSe () {
   # Check if the Node PoSe score is changing.
   if [[ ! -z ${NODE_PROTX} ]]; then
-    POSE_SCORE=$(GetNumber $(curl -s "${URL[$URL_ID]}api/protx?command=info&protxhash=${NODE_PROTX}" | jq -r '.state.PoSePenalty'))
+    POSE_SCORE=$(curl -s "${URL[$URL_ID]}api/protx?command=info&protxhash=${NODE_PROTX}" | jq -r '.state.PoSePenalty')
     # Check if the response returned a number or failed.
-    if (( POSE_SCORE < 0 )); then
+    if [[ $(GetNumber $POSE_SCORE) -lt 0 && $POSE_SCORE != "null" ]]; then
       URL_ID=$(( (URL_ID + 1) % 2 ))
-      POSE_SCORE=$(GetNumber $(curl -s "${URL[$URL_ID]}api/protx?command=info&protxhash=${NODE_PROTX}" | jq -r '.state.PoSePenalty'))
+      POSE_SCORE=$(curl -s "${URL[$URL_ID]}api/protx?command=info&protxhash=${NODE_PROTX}" | jq -r '.state.PoSePenalty')
     fi
+    if [[ $POSE_SCORE == "null" ]]; then
+      echo "$(date -u)  Your NODE_PROTX is invalid, please insert your NODE_PROTX hash in line #19 of check.sh script."
+    elif (( $(GetNumber $POSE_SCORE) == -1 )); then
+      echo "$(date -u)  Could not get PoSe score for the node. It is possible both explorers are down."
+    fi
+    POSE_SCORE=$(GetNumber $POSE_SCORE)
   else
-    echo "$(date)  Your NODE_PROTX is empty. Please reinitialize the node again or add it in line #19 of check.sh script."
+    echo "$(date -u)  Your NODE_PROTX is empty. Please reinitialize the node again or add it in line #18 of check.sh script."
   fi
-  if (( $POSE_SCORE == -1 )); then
-    echo "$(date)  Could not get PoSe score for the node. It is possible both explorers are down."
-    echo "$(date)  If it happens a lot, please insert your NODE_PROTX hash in line #19 of check.sh script."
-  fi
+
   PREV_SCORE=$(ReadValue "/tmp/pose_score")
   echo ${POSE_SCORE} >/tmp/pose_score
 
@@ -82,12 +85,12 @@ function CheckPoSe () {
   if (( POSE_SCORE > 0 )); then
     if (( POSE_SCORE > PREV_SCORE )); then
       killall -9 raptoreumd
-      echo "$(date)  Score increased from ${PREV_SCORE} to ${POSE_SCORE}. Send kill signal..."
+      echo "$(date -u)  Score increased from ${PREV_SCORE} to ${POSE_SCORE}. Send kill signal..."
       echo "1" >/tmp/was_stuck
       # Do not check node height after killing raptoreumd it is sure to be stuck.
       exit
     elif (( POSE_SCORE < PREV_SCORE )); then
-      echo "$(date)  Score decreased from ${PREV_SCORE} to ${POSE_SCORE}. Wait..."
+      echo "$(date -u)  Score decreased from ${PREV_SCORE} to ${POSE_SCORE}. Wait..."
       rm /tmp/was_stuck 2>/dev/null
     fi
     # POSE_SCORE == PREV_SCORE is gonna force check the node block height.
@@ -105,7 +108,7 @@ function CheckBlockHeight () {
   LOCAL_HEIGHT=$(GetNumber "$(ReadCli getblockcount)")
   echo ${LOCAL_HEIGHT} >/tmp/height
   if [[ $POSE_SCORE -eq $PREV_SCORE || $PREV_SCORE -eq -1 ]]; then
-    echo -n "$(date)  Node height (${LOCAL_HEIGHT}/${NETWORK_HEIGHT})."
+    echo -n "$(date -u)  Node height (${LOCAL_HEIGHT}/${NETWORK_HEIGHT})."
     # Block height did not change. Is it stuck?. Compare with netowrk block height. Allow some slippage.
     if [[ $((NETWORK_HEIGHT - LOCAL_HEIGHT)) -gt 5 || $NETWORK_HEIGHT == -1 ]]; then
       if (( LOCAL_HEIGHT > PREV_HEIGHT )); then
@@ -141,28 +144,28 @@ function CheckBlockHeight () {
 }
 
 function BootstrapChain () {
-  echo "$(date)  Re-Bootstrap the node chain."
+  echo "$(date -u)  Re-Bootstrap the node chain."
   echo "0" >/tmp/height
   echo "0" >/tmp/prev_stuck
 
-  echo "$(date)  Download and prepare rtm-bootstrap."
+  echo "$(date -u)  Download and prepare rtm-bootstrap."
   rm -rf /tmp/bootstrap 2>/dev/null
   mkdir -p /tmp/bootstrap 2>/dev/null
   curl -L "$BOOTSTRAP_TAR" | tar xz -C /tmp/bootstrap/
   
-  echo "$(date)  Kill raptoreumd."
+  echo "$(date -u)  Kill raptoreumd."
   killall -9 raptoreumd 2>/dev/null
 
-  echo "$(date)  Clean ${CONFIG_DIR}."
+  echo "$(date -u)  Clean ${CONFIG_DIR}."
   rm -rf ${CONFIG_DIR}/{blocks,chainstate,evodb,llmq}
 
   # Try to kill raptoreumd again in case it went back up.
   killall -9 raptoreumd 2>/dev/null
-  echo "$(date)  Insert Bootstrap data."
+  echo "$(date -u)  Insert Bootstrap data."
   mv /tmp/bootstrap/{blocks,chainstate,evodb,llmq} ${CONFIG_DIR}/
   
   rm -rf /tmp/bootstrap 2>/dev/null
-  echo "$(date)  Bootstrap complete."
+  echo "$(date -u)  Bootstrap complete."
 }
 
 # This should force unstuck the local node.
@@ -173,7 +176,7 @@ function ReconsiderBlock () {
     RECONSIDER=$(( LOCAL_HEIGHT - 10 ))
     HASH=$(ReadCli getblockhash ${RECONSIDER})
     if [[ ${HASH} != "-1" ]]; then
-      echo "$(date)  Reconsider chain from 10 blocks before current one ${RECONSIDER}."
+      echo "$(date -u)  Reconsider chain from 10 blocks before current one ${RECONSIDER}."
       if [[ -z $(ReadCli reconsiderblock "${HASH}") ]]; then
         echo ${RECONSIDER} >/tmp/height
         echo ${LOCAL_HEIGHT} >/tmp/prev_stuck
