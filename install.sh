@@ -54,7 +54,6 @@ function wipe_clean() {
   sudo rm /usr/bin/$COIN_NAME* > /dev/null 2>&1
   rm -rf $HOME/$CONFIG_DIR > /dev/null 2>&1
   rm update.sh check.sh > /dev/null 2>&1
-  rm -rf sentinel
 }
 
 function ssh_port() {
@@ -95,7 +94,7 @@ function install_packages() {
   echo -e "${YELLOW}Installing Packages...${NC}"
   sudo apt-get update -y
   sudo apt-get upgrade -y
-  sudo apt-get install nano htop pwgen figlet unzip jq -y
+  sudo apt-get install nano htop pwgen figlet unzip curl jq -y
   echo -e "${YELLOW}Packages complete...${NC}"
 }
 
@@ -111,17 +110,26 @@ function spinning_timer() {
   echo -e "${MSG2}"
 }
 
+smartnodeblsprivkey=""
+# If $1 is provided, just ask about BLS key.
 function create_conf() {
+  if [[ ! -z $1 ]]; then
+    # Force user to provide BLS key.
+    while [[ -z $smartnodeblsprivkey ]]; do
+      smartnodeblsprivkey=$(whiptail --inputbox "Enter your SmartNode BLS Privkey" 8 75 3>&1 1>&2 2>&3)
+    done
+    return
+  fi
+  # Force user to provide BLS key. Sanity check here.
+  while [[ -z $smartnodeblsprivkey ]]; do
+    smartnodeblsprivkey=$(whiptail --inputbox "Enter your SmartNode BLS Privkey" 8 75 3>&1 1>&2 2>&3)
+  done
   if [ -f $HOME/$CONFIG_DIR/$CONFIG_FILE ]; then
     echo -e "${CYAN}Existing conf file found backing up to $COIN_NAME.old ...${NC}"
     mv $HOME/$CONFIG_DIR/$CONFIG_FILE $HOME/$CONFIG_DIR/$COIN_NAME.old;
   fi
   RPCUSER=$(pwgen -1 8 -n)
   PASSWORD=$(pwgen -1 20 -n)
-  smartnodeblsprivkey=$(whiptail --inputbox "Enter your SmartNode BLS Privkey" 8 75 3>&1 1>&2 2>&3)
-  while [[ -z $smartnodeblsprivkey ]]; do
-    smartnodeblsprivkey=$(whiptail --inputbox "Enter your SmartNode BLS Privkey" 8 75 3>&1 1>&2 2>&3)
-  done
   echo -e "${YELLOW}Creating Conf File...${NC}"
   sleep 1
   mkdir $HOME/$CONFIG_DIR > /dev/null 2>&1
@@ -187,31 +195,7 @@ rm -rf temp
 sudo chmod 755 \${COIN_PATH}/\${COIN_NAME}*
 sudo systemctl start \$COIN_NAME > /dev/null 2>&1
 EOF
-    sudo chmod 775 update.sh
-}
-
-function install_sentinel() {
-  echo -e "${YELLOW}Installing sentinel...${NC}"
-  git clone https://github.com/dashpay/sentinel.git && cd sentinel
-  virtualenv venv
-  venv/bin/pip install -r requirements.txt
-  #sentinel conf
-  SENTINEL_CONF=$(cat <<EOF
-raptoreum_conf=/home/$USERNAME/$CONFIG_DIR/$CONFIG_FILE
-db_name=/home/$USERNAME/sentinel/database/sentinel.db
-db_driver=sqlite
-network=mainnet
-EOF
-)
-  echo -e "${YELLOW}Configuring sentinel and cron job...${NC}"
-  echo "$SENTINEL_CONF" > ~/sentinel/sentinel.conf
-  cd
-  crontab -l | grep -v "~/sentinel && ./venv/bin/python bin/sentinel.py" | crontab -
-  sleep 1
-  crontab -l > tempcron
-  echo "* * * * * cd ~/sentinel && ./venv/bin/python bin/sentinel.py > /dev/null 2>&1" >> tempcron
-  crontab tempcron
-  rm tempcron
+    sudo chmod 775 $HOME/update.sh
 }
 
 function create_service() {
@@ -391,7 +375,7 @@ EOF
   sudo chmod 775 $HOME/99-smartnode
   bash $HOME/99-smartnode
   sudo cp $HOME/99-smartnode /etc/update-motd.d 2>/dev/null
-  sudo chown root:root /etc/update-motd.d 2>/dev/null
+  sudo chown root:root /etc/update-motd.d/99-smartnode 2>/dev/null
   rm $HOME/99-smartnode
 }
 
@@ -405,7 +389,7 @@ EOF
   ssh_port
   ip_confirm
   create_swap
-  create_conf
+  create_conf true
   basic_security true
   bootstrap true
   cron_job true
@@ -413,6 +397,7 @@ EOF
 #Run functionis.
   install_packages
   install_bins
+  create_conf
   bootstrap
   create_service
   basic_security

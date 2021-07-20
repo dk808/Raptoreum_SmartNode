@@ -69,7 +69,7 @@ function CheckPoSe () {
       POSE_SCORE=$(curl -s "${URL[$URL_ID]}api/protx?command=info&protxhash=${NODE_PROTX}" | jq -r '.state.PoSePenalty')
     fi
     if [[ $POSE_SCORE == "null" ]]; then
-      echo "$(date -u)  Your NODE_PROTX is invalid, please insert your NODE_PROTX hash in line #19 of check.sh script."
+      echo "$(date -u)  Your NODE_PROTX is invalid, please insert your NODE_PROTX hash in line #18 of check.sh script."
     elif (( $(GetNumber $POSE_SCORE) == -1 )); then
       echo "$(date -u)  Could not get PoSe score for the node. It is possible both explorers are down."
     fi
