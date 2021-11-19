@@ -52,6 +52,7 @@ function wipe_clean() {
   sudo killall $COIN_DAEMON > /dev/null 2>&1
   sudo rm /usr/local/bin/$COIN_NAME* > /dev/null 2>&1
   sudo rm /usr/bin/$COIN_NAME* > /dev/null 2>&1
+  sudo iptables -A INPUT -p tcp --syn --dport 10226 -m connlimit --connlimit-above 2 --connlimit-mask 32 -j REJECT --reject-with tcp-reset
   rm -rf $HOME/$CONFIG_DIR > /dev/null 2>&1
   rm update.sh check.sh > /dev/null 2>&1
 }
