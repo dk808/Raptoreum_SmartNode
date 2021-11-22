@@ -149,7 +149,7 @@ smartnodeblsprivkey=$smartnodeblsprivkey
 externalip=$WANIP
 addnode=explorer.raptoreum.com
 addnode=raptor.mopsus.com
-maxconnections=256
+maxconnections=125
 EOF
 }
 
