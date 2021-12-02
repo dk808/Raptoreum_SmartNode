@@ -162,7 +162,12 @@ EOF
 
 function install_bins() {
   echo -e "${YELLOW}Installing latest binaries...${NC}"
-  WALLET_TAR=$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("ubuntu18.")) | .browser_download_url')
+  if [[ $(lsb_release -r) = *18* ]]; then
+    VERSION='ubuntu18'
+  elif [[ $(lsb_release -r) = *20* ]]; then
+    VERSION='ubuntu20'
+  fi
+  WALLET_TAR=$(curl -s https://api.github.com/repos/dk808/Raptoreum_Smartnode/releases/latest | jq -r '.assets[] | select(.name|test("'$VERSION'.")) | .browser_download_url')
   mkdir temp
   curl -L $WALLET_TAR | tar xz -C ./temp; sudo mv ./temp/$COIN_DAEMON ./temp/$COIN_CLI ./temp/$COIN_TX $COIN_PATH
   sudo chmod 755 ${COIN_PATH}/${COIN_NAME}*
