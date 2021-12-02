@@ -47,7 +47,7 @@ function ReadCli () {
   # This should just echo (return) value with standard stdout.
   ${RAPTOREUM_CLI} $@ &
   PID=$!
-  for i in {0..300}; do
+  for i in {0..60}; do
     sleep 1
     if ! ps --pid ${PID} 1>/dev/null; then
       # PID ended. Just exit the function.
@@ -57,6 +57,19 @@ function ReadCli () {
   # raptoreum-cli did not return after 300s. kill the PID and exit with -1.
   kill -9 $PID
   echo -1
+}
+
+function tryToKillDaemonGracefullyFirst() {
+    echo "$(date -u) trying to kill it gracefully"
+    killall raptoreumd
+    sleep 90s
+    LOCAL_HEIGHT=$(GetNumber "$(ReadCli getblockcount)")
+    if (( LOCAL_HEIGHT < 0 )); then
+       echo  "$(date -u) unable to kill raptoreumd gracefully, force kill it"
+       killall -9 raptoreumd
+    else
+       echo "$(date -u) daemon is started backup"
+    fi
 }
 
 function CheckPoSe () {
@@ -84,8 +97,8 @@ function CheckPoSe () {
   # Check if we should restart raptoreumd according to the PoSe score.
   if (( POSE_SCORE > 0 )); then
     if (( POSE_SCORE > PREV_SCORE )); then
-      killall -9 raptoreumd
       echo "$(date -u)  Score increased from ${PREV_SCORE} to ${POSE_SCORE}. Send kill signal..."
+      tryToKillDaemonGracefullyFirst
       echo "1" >/tmp/was_stuck
       # Do not check node height after killing raptoreumd it is sure to be stuck.
       exit
@@ -110,7 +123,7 @@ function CheckBlockHeight () {
   if [[ $POSE_SCORE -eq $PREV_SCORE || $PREV_SCORE -eq -1 ]]; then
     echo -n "$(date -u)  Node height (${LOCAL_HEIGHT}/${NETWORK_HEIGHT})."
     # Block height did not change. Is it stuck?. Compare with netowrk block height. Allow some slippage.
-    if [[ $((NETWORK_HEIGHT - LOCAL_HEIGHT)) -gt 5 || $NETWORK_HEIGHT == -1 ]]; then
+    if [[ $((NETWORK_HEIGHT - LOCAL_HEIGHT)) -gt 3 || $NETWORK_HEIGHT == -1 ]]; then
       if (( LOCAL_HEIGHT > PREV_HEIGHT )); then
         # Node is still syncing?
         rm /tmp/was_stuck 2>/dev/null
@@ -119,15 +132,15 @@ function CheckBlockHeight () {
         # Node is behind the network height and it is first attempt at unstucking.
         # If LOCAL_HEIGHT is >0 it means that we were able to read from the cli
         # but the height did not change compared to previous check.
-        killall -9 raptoreumd
         echo "1" >/tmp/was_stuck
-        echo " Height difference is more than 5 blocks behind the network. Send kill signal..."
+        echo " Height difference is more than 3 blocks behind the network. Send kill signal..."
+	tryToKillDaemonGracefullyFirst
       elif [[ $(ReadValue "/tmp/was_stuck") -lt 0 ]]; then
         # Node was not able to respond. It is probably stuck but try to restart
         # it once before trying to bootstrap or restore it.
-        killall -9 raptoreumd
         echo "1" >/tmp/was_stuck
         echo " Node was unresponsive for the first time. Send kill signal..."
+	tryToKillDaemonGracefullyFirst
       else
         # Node is most probably very stuck and if trying to sync wrong chain branch.
         # This meand simple raptoreumd kill will not help and we need to

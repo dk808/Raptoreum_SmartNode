@@ -52,6 +52,7 @@ function wipe_clean() {
   sudo killall $COIN_DAEMON > /dev/null 2>&1
   sudo rm /usr/local/bin/$COIN_NAME* > /dev/null 2>&1
   sudo rm /usr/bin/$COIN_NAME* > /dev/null 2>&1
+  sudo iptables -A INPUT -p tcp --syn --dport 10226 -m connlimit --connlimit-above 2 --connlimit-mask 32 -j REJECT --reject-with tcp-reset
   rm -rf $HOME/$CONFIG_DIR > /dev/null 2>&1
   rm update.sh check.sh > /dev/null 2>&1
 }
@@ -143,13 +144,19 @@ port=$PORT
 server=1
 daemon=1
 listen=1
-par=2
-dbcache=1024
 smartnodeblsprivkey=$smartnodeblsprivkey
 externalip=$WANIP
-addnode=explorer.raptoreum.com
-addnode=raptor.mopsus.com
 maxconnections=125
+par=2
+dbcache=1024
+onlynet=ipv4
+addnode=209.151.150.72
+addnode=94.237.79.27
+addnode=95.111.216.12
+addnode=198.100.149.124
+addnode=198.100.146.111
+addnode=5.135.187.46
+addnode=5.135.179.95
 EOF
 }
 
