@@ -194,7 +194,12 @@ function update_script() {
     touch $HOME/update.sh
     cat << EOF > $HOME/update.sh
 #!/bin/bash
-WALLET_TAR=\$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("ubuntu18.")) | .browser_download_url')
+if [[ \$(lsb_release -r) = *18* ]]; then
+  VERSION='ubuntu18'
+elif [[ \$(lsb_release -r) = *20* ]]; then
+  VERSION='ubuntu20'
+fi
+WALLET_TAR=\$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("'\$VERSION'.")) | .browser_download_url')
 COIN_NAME='raptoreum'
 COIN_DAEMON='raptoreumd'
 COIN_CLI='raptoreum-cli'
