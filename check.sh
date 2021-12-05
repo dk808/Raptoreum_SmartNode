@@ -166,15 +166,13 @@ function BootstrapChain () {
   mkdir -p /tmp/bootstrap 2>/dev/null
   curl -L "$BOOTSTRAP_TAR" | tar xz -C /tmp/bootstrap/
   
+  # Stop serivce and kill raptoreumd.
   echo "$(date -u)  Kill raptoreumd."
+  sudo systemctl stop raptoreum
   killall -9 raptoreumd 2>/dev/null
 
   echo "$(date -u)  Clean ${CONFIG_DIR}."
   rm -rf ${CONFIG_DIR}/{blocks,chainstate,evodb,llmq}
-
-  # Stop serivce and kill raptoreumd again in case it went back up.
-  sudo systemctl stop raptoreum
-  killall -9 raptoreumd 2>/dev/null
   echo "$(date -u)  Insert Bootstrap data."
   mv /tmp/bootstrap/{blocks,chainstate,evodb,llmq} ${CONFIG_DIR}/
   
