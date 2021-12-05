@@ -60,16 +60,16 @@ function ReadCli () {
 }
 
 function tryToKillDaemonGracefullyFirst() {
-    echo "$(date -u) trying to kill it gracefully"
-    killall raptoreumd
-    sleep 90s
-    LOCAL_HEIGHT=$(GetNumber "$(ReadCli getblockcount)")
-    if (( LOCAL_HEIGHT < 0 )); then
-       echo  "$(date -u) unable to kill raptoreumd gracefully, force kill it"
-       killall -9 raptoreumd
-    else
-       echo "$(date -u) daemon is started backup"
-    fi
+  echo "$(date -u)  Trying to kill daemon gracefully..."
+  killall raptoreumd
+  sleep 90s
+  LOCAL_HEIGHT=$(GetNumber "$(ReadCli getblockcount)")
+  if (( LOCAL_HEIGHT < 0 )); then
+     echo  "$(date -u)  Unable to kill daemon gracefully, force kill it..."
+     killall -9 raptoreumd
+  else
+     echo "$(date -u) Daemon has restarted..."
+  fi
 }
 
 function CheckPoSe () {
@@ -134,13 +134,13 @@ function CheckBlockHeight () {
         # but the height did not change compared to previous check.
         echo "1" >/tmp/was_stuck
         echo " Height difference is more than 3 blocks behind the network. Send kill signal..."
-	tryToKillDaemonGracefullyFirst
+	    tryToKillDaemonGracefullyFirst
       elif [[ $(ReadValue "/tmp/was_stuck") -lt 0 ]]; then
         # Node was not able to respond. It is probably stuck but try to restart
         # it once before trying to bootstrap or restore it.
         echo "1" >/tmp/was_stuck
         echo " Node was unresponsive for the first time. Send kill signal..."
-	tryToKillDaemonGracefullyFirst
+	    tryToKillDaemonGracefullyFirst
       else
         # Node is most probably very stuck and if trying to sync wrong chain branch.
         # This meand simple raptoreumd kill will not help and we need to
@@ -172,13 +172,15 @@ function BootstrapChain () {
   echo "$(date -u)  Clean ${CONFIG_DIR}."
   rm -rf ${CONFIG_DIR}/{blocks,chainstate,evodb,llmq}
 
-  # Try to kill raptoreumd again in case it went back up.
+  # Stop serivce and kill raptoreumd again in case it went back up.
+  sudo systemctl stop raptoreum
   killall -9 raptoreumd 2>/dev/null
   echo "$(date -u)  Insert Bootstrap data."
   mv /tmp/bootstrap/{blocks,chainstate,evodb,llmq} ${CONFIG_DIR}/
   
   rm -rf /tmp/bootstrap 2>/dev/null
   echo "$(date -u)  Bootstrap complete."
+  sudo systemctl start raptoreum
 }
 
 # This should force unstuck the local node.
