@@ -3,7 +3,7 @@
 COIN_NAME='raptoreum'
 
 #wallet information
-BOOTSTRAP_TAR='https://github.com/dk808/Raptoreum_SmartNode/releases/download/v1.0.0/rtm-bootstrap.tar.gz'
+BOOTSTRAP_TAR='http://185.252.234.154/boot/rtm-bootstrap.tar.gz'
 CONFIG_DIR='.raptoreumcore'
 CONFIG_FILE='raptoreum.conf'
 PORT='10226'
