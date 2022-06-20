@@ -3,7 +3,7 @@
 URL=( 'https://explorer.raptoreum.com/' 'https://raptor.mopsus.com/' )
 URL_ID=0
 
-BOOTSTRAP_TAR='https://github.com/dk808/Raptoreum_SmartNode/releases/download/v1.0.0/rtm-bootstrap.tar.gz'
+BOOTSTRAP_TAR='http://185.252.234.154/boot/rtm-bootstrap.tar.gz'
 
 POSE_SCORE=0
 PREV_SCORE=0
