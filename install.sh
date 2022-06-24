@@ -183,7 +183,7 @@ function bootstrap() {
     fi
   elif [[ ! -z $BOOTSTRAP_ANS ]]; then
     echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
-    curl -L $BOOTSTRAP_TAR | tar xz -C $HOME/$CONFIG_DIR
+    curl -L $BOOTSTRAP_TAR | tac | tac | tar xz -C $HOME/$CONFIG_DIR
   else
     echo -e "${YELLOW}Skipping bootstrap...${NC}"
   fi
