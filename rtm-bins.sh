@@ -5,7 +5,7 @@ COIN_DAEMON='raptoreumd'
 COIN_CLI='raptoreum-cli'
 COIN_TX='raptoreum-tx'
 COIN_PATH='/usr/local/bin'
-WALLET_TAR=$(curl -s https://api.github.com/repos/dk808/Raptoreum_Smartnode/releases/latest | jq -r '.assets[] | select(.name|test("ubuntu18.")) | .browser_download_url')
+WALLET_TAR=$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("ubuntu18.")) | .browser_download_url')
 
 # fetch latest release using github api
 if pgrep $COIN_DAEMON; then

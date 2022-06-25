@@ -164,7 +164,7 @@ function BootstrapChain () {
   echo "$(date -u)  Download and prepare rtm-bootstrap."
   rm -rf /tmp/bootstrap 2>/dev/null
   mkdir -p /tmp/bootstrap 2>/dev/null
-  curl -L "$BOOTSTRAP_TAR" | tar -xJf - -C /tmp/bootstrap/
+  curl -L "$BOOTSTRAP_TAR" | tar xJ -C /tmp/bootstrap/
   
   # Stop serivce and kill raptoreumd.
   echo "$(date -u)  Kill raptoreumd."
