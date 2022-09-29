@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DIR='/raptoreum/.raptoreumcore'
-BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstrap_with_indexes.tar.xz'
+BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstraps_for_v1.3.17.00/bootstrap.tar.xz'
 
 if [ ! -d $DIR ]; then
   mkdir -p $DIR

@@ -3,7 +3,7 @@
 URL=( 'https://explorer.raptoreum.com/' 'https://raptor.mopsus.com/' )
 URL_ID=0
 
-BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstrap_with_indexes.tar.xz'
+BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstraps_for_v1.3.17.00/bootstrap.tar.xz'
 
 POSE_SCORE=0
 PREV_SCORE=0
@@ -164,7 +164,13 @@ function BootstrapChain () {
   echo "$(date -u)  Download and prepare rtm-bootstrap."
   rm -rf /tmp/bootstrap 2>/dev/null
   mkdir -p /tmp/bootstrap 2>/dev/null
-  curl -L "$BOOTSTRAP_TAR" | tar xJ -C /tmp/bootstrap/
+  if [[ -f $HOME/bootstrap/bootstrap.tar.gz ]]; then
+    mv chainbackup.sh temp.sh
+    tar xzf $HOME/bootstrap/bootstrap.tar.gz -C /tmp/bootstrap
+    mv temp.sh chainbackup.sh
+  else
+    curl -L "$BOOTSTRAP_TAR" | tar xJ -C /tmp/bootstrap/
+  fi
   
   # Stop serivce and kill raptoreumd.
   echo "$(date -u)  Kill raptoreumd."

@@ -3,7 +3,8 @@
 COIN_NAME='raptoreum'
 
 #wallet information
-BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstrap_with_indexes.tar.xz'
+BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstraps_for_v1.3.17.00/bootstrap.tar.xz'
+POWCACHE='https://github.com/dk808/Raptoreum_SmartNode/releases/download/v1.0.0/powcache.dat'
 CONFIG_DIR='.raptoreumcore'
 CONFIG_FILE='raptoreum.conf'
 PORT='10226'
@@ -54,7 +55,7 @@ function wipe_clean() {
   sudo rm /usr/bin/$COIN_NAME* > /dev/null 2>&1
   sudo iptables -A INPUT -p tcp --syn --dport 10226 -m connlimit --connlimit-above 2 --connlimit-mask 32 -j REJECT --reject-with tcp-reset
   rm -rf $HOME/$CONFIG_DIR > /dev/null 2>&1
-  rm update.sh check.sh > /dev/null 2>&1
+  rm update.sh check.sh chainbackup.sh > /dev/null 2>&1
 }
 
 function ssh_port() {
@@ -144,9 +145,7 @@ port=$PORT
 server=1
 daemon=1
 listen=1
-index=1
 txindex=1
-addressindex=1
 smartnodeblsprivkey=$smartnodeblsprivkey
 externalip=$WANIP
 maxconnections=125
@@ -185,11 +184,37 @@ function bootstrap() {
       BOOTSTRAP_ANS=1
     fi
   elif [[ ! -z $BOOTSTRAP_ANS ]]; then
-    echo -e "${YELLOW}Downloading wallet bootstrap please be patient...${NC}"
+    echo -e "${YELLOW}Downloading wallet bootstrap and powcache.dat file please be patient...${NC}"
     curl -L $BOOTSTRAP_TAR | tar xJ -C $HOME/$CONFIG_DIR
+    curl -L $POWCACHE > $HOME/$CONFIG_DIR/powcache.dat
   else
-    echo -e "${YELLOW}Skipping bootstrap...${NC}"
+    echo -e "${YELLOW}Skipping bootstrap and downloading powcache.dat file to speed up syncing...${NC}"
+    curl -L $POWCACHE > $HOME/$CONFIG_DIR/powcache.dat
   fi
+}
+
+function chain_backup() {
+  echo -e "${YELLOW}Creating new directory to store bootstrap file...${NC}"
+  mkdir $HOME/bootstrap
+  echo -e "${YELLOW}Creating bootstrap script...${NC}"
+  touch $HOME/chainbackup.sh
+  cat << EOF > $HOME/chainbackup.sh
+#!/bin/bash
+COIN_NAME='raptoreum'
+COIN_CLI='raptoreum-cli'
+COIN_DAEMON='raptoreumd'
+CONFIG_DIR='.raptoreumcore'
+mv check.sh temp.sh
+sudo systemctl stop \$COIN_NAME
+\$COIN_CLI stop > /dev/null 2>&1 && sleep 2
+sudo killall \$COIN_DAEMON > /dev/null 2>&1 && sleep 2
+rm \$HOME/bootstrap/bootstrap.tar.gz
+tar czf \$HOME/bootstrap/bootstrap.tar.gz -C \$HOME/\$CONFIG_DIR blocks chainstate evodb llmq && sleep 2
+echo "\$(date -u)  Bootstrap created"
+sudo systemctl start \$COIN_NAME > /dev/null 2>&1
+mv temp.sh check.sh
+EOF
+  sudo chmod 775 $HOME/chainbackup.sh
 }
 
 function update_script() {
@@ -251,7 +276,7 @@ EOF
 }
 
 SECURITY_ANS=""
-# If $1 is provided, just ask about bootstrap
+# If $1 is provided, just ask about basic security.
 function basic_security() {
   if [[ ! -z $1 ]]; then
     if whiptail --yesno "Would you like to setup basic firewall and fail2ban?" 8 56; then
@@ -319,39 +344,59 @@ function log_rotate() {
   daily
   rotate 7
 }
+
+/home/$USERNAME/.raptoreumcore/bootstrap.log {
+  size 1000k
+  copytruncate
+  missingok
+  rotate 0
+}
+
+/home/$USERNAME/.raptoreumcore/check.log {
+  size 1000k
+  compress
+  copytruncate
+  missingok
+  rotate 3
+}
 EOF
   sudo chown root:root /etc/logrotate.d/rtmdebuglog
 }
 
-CRON_ANS=""
 PROTX_HASH=""
-# If $1 is provided, just ask about bootstrap.
+# If $1 is provided, just ask about ProTx Hash.
 function cron_job() {
   if [[ ! -z $1 ]]; then
-    if whiptail --yesno "Would you like Cron to check on daemon's health every 15 minutes?" 8 63; then
-      CRON_ANS=1
+    # Force user to provide ProTx Hash.
+    while [[ -z $PROTX_HASH ]]; do
       PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
-    fi
-  elif [[ ! -z $CRON_ANS ]]; then
-    cat <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/main/check.sh) >$HOME/check.sh
-    sed -i "s/#NODE_PROTX=/NODE_PROTX=\"${PROTX_HASH}\"/g" $HOME/check.sh
-    sudo chmod 775 $HOME/check.sh
-    crontab -l | grep -v "SHELL=/bin/bash" | crontab -
-    crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
-    crontab -l | grep -v "HOME=$HOME" | crontab -
-    crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
-    crontab -l > tempcron
-    echo "SHELL=/bin/bash" >> tempcron
-    echo "RAPTOREUM_CLI=$(which $COIN_CLI)" >> tempcron
-    echo "HOME=$HOME" >> tempcron
-    echo "*/15 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
-    crontab tempcron
-    rm tempcron
-    rm -f /tmp/height 2>/dev/null
-    rm -f /tmp/pose_score 2>/dev/null
-    rm -f /tmp/was_stuck 2>/dev/null
-    rm -f /tmp/prev_stuck 2>/dev/null
+    done
+    return
   fi
+  # Force user to provide Protx Hash. Sanity check here.
+  while [[ -z $PROTX_HASH ]]; do
+    PROTX_HASH=$(whiptail --inputbox "Please enter your protx hash for this SmartNode" 8 51 3>&1 1>&2 2>&3)
+  done
+  cat <(curl -s https://raw.githubusercontent.com/dk808/Raptoreum_Smartnode/main/check.sh) >$HOME/check.sh
+  sed -i "s/#NODE_PROTX=/NODE_PROTX=\"${PROTX_HASH}\"/g" $HOME/check.sh
+  sudo chmod 775 $HOME/check.sh
+  crontab -l | grep -v "SHELL=/bin/bash" | crontab -
+  crontab -l | grep -v "RAPTOREUM_CLI=$(which $COIN_CLI)" | crontab -
+  crontab -l | grep -v "HOME=$HOME" | crontab -
+  crontab -l | grep -v "$HOME/check.sh >> $HOME/check.log" | crontab -
+  crontab -l | grep -v "$HOME/chainbackup.sh" | crontab -
+  crontab -l > tempcron
+  echo "SHELL=/bin/bash" >> tempcron
+  echo "RAPTOREUM_CLI=$(which $COIN_CLI)" >> tempcron
+  echo "HOME=$HOME" >> tempcron
+  echo "*/15 * * * * $HOME/check.sh >> $HOME/check.log" >> tempcron
+  echo "0 0 15 * * $HOME/chainbackup.sh >> $HOME/bootstrap.log" >> tempcron
+  crontab tempcron
+  rm tempcron
+  rm -f /tmp/height 2>/dev/null
+  rm -f /tmp/pose_score 2>/dev/null
+  rm -f /tmp/was_stuck 2>/dev/null
+  rm -f /tmp/prev_stuck 2>/dev/null
 }
 
 function create_motd() {
@@ -421,6 +466,7 @@ EOF
   install_bins
   create_conf
   bootstrap
+  chain_backup
   create_service
   basic_security
   start_daemon

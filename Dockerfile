@@ -1,7 +1,7 @@
 # Raptoreum Smartnode April 2021
 
-# Use Ubuntu 18 
-FROM ubuntu:bionic
+# Use Ubuntu 20 
+FROM ubuntu:focal
 
 LABEL maintainer="dk808"
 
