@@ -345,14 +345,14 @@ function log_rotate() {
   rotate 7
 }
 
-/home/$USERNAME/.raptoreumcore/bootstrap.log {
+/home/$USERNAME/bootstrap.log {
   size 1000k
   copytruncate
   missingok
   rotate 0
 }
 
-/home/$USERNAME/.raptoreumcore/check.log {
+/home/$USERNAME/check.log {
   size 1000k
   compress
   copytruncate
