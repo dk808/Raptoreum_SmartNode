@@ -314,18 +314,13 @@ function start_daemon() {
   NUM='180'
   MSG1='Starting daemon service & syncing chain please be patient this will take few min...'
   MSG=''
-  if sudo systemctl start $COIN_NAME > /dev/null 2>&1; then
-    echo && spinning_timer
-    NUM='5'
-    MSG1='Getting blockchain info...'
-    MSG2=''
-    echo && spinning_timer
-    echo
-    $COIN_CLI getblockchaininfo
-  else
-    echo -e "${RED}Something is not right the daemon did not start. Will exit out so try and run the script again.${NC}"
-    exit
-  fi
+  ./raptoreumd -testnet
+  NUM='5'
+  MSG1='Getting blockchain info...'
+  MSG2=''
+  echo && spinning_timer
+  echo
+  $COIN_CLI getblockchaininfo
 }
 
 function log_rotate() {
@@ -467,7 +462,7 @@ EOF
   create_conf
   bootstrap
   chain_backup
-  create_service
+  # create_service
   basic_security
   start_daemon
   cron_job
