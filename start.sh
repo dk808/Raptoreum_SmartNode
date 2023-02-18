@@ -15,7 +15,6 @@ rpcuser=$(pwgen -1 8 -n)
 rpcpassword=$(pwgen -1 20 -n)
 rpcallowip=127.0.0.1
 rpcbind=127.0.0.1
-index=1
 txindex=1
 listen=1
 par=2
@@ -23,7 +22,6 @@ dbcache=1024
 smartnodeblsprivkey=${BLS_KEY}
 externalip=${EXTERNALIP}
 addnode=explorer.raptoreum.com
-addnode=raptor.mopsus.com
 addnode=209.151.150.72
 addnode=94.237.79.27
 addnode=95.111.216.12
@@ -52,6 +50,18 @@ addnode=5.135.179.95
 EOF
   fi
 fi
+
+# Setup logrotate for debug log
+touch /etc/logrotate.d/rtmdebuglog
+cat << EOF > /etc/logrotate.d/rtmdebuglog
+/raptoreum/.raptoreumcore/debug.log {
+  compress
+  copytruncate
+  missingok
+  daily
+  rotate 7
+}
+EOF
 
 # Create script for HEALTHCHECK
 if [ ! -e /usr/local/bin/healthcheck.sh ]; then

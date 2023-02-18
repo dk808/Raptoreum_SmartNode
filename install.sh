@@ -3,7 +3,7 @@
 COIN_NAME='raptoreum'
 
 #wallet information
-BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstraps_for_v1.3.17.00/bootstrap.tar.xz'
+BOOTSTRAP_TAR='https://bootstrap.raptoreum.com/bootstraps/bootstrap.tar.xz'
 POWCACHE='https://github.com/dk808/Raptoreum_SmartNode/releases/download/v1.0.0/powcache.dat'
 CONFIG_DIR='.raptoreumcore'
 CONFIG_FILE='raptoreum.conf'
@@ -164,10 +164,10 @@ EOF
 
 function install_bins() {
   echo -e "${YELLOW}Installing latest binaries...${NC}"
-  if [[ $(lsb_release -r) = *18* ]]; then
-    VERSION='ubuntu18'
-  elif [[ $(lsb_release -r) = *20* ]]; then
+  if [[ $(lsb_release -r) = *20* ]]; then
     VERSION='ubuntu20'
+  elif [[ $(lsb_release -r) = *22* ]]; then
+    VERSION='ubuntu22'
   fi
   WALLET_TAR=$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("'$VERSION'.")) | .browser_download_url')
   mkdir temp
@@ -222,10 +222,10 @@ function update_script() {
     touch $HOME/update.sh
     cat << EOF > $HOME/update.sh
 #!/bin/bash
-if [[ \$(lsb_release -r) = *18* ]]; then
-  VERSION='ubuntu18'
-elif [[ \$(lsb_release -r) = *20* ]]; then
+if [[ \$(lsb_release -r) = *20* ]]; then
   VERSION='ubuntu20'
+elif [[ \$(lsb_release -r) = *22* ]]; then
+  VERSION='ubuntu22'
 fi
 WALLET_TAR=\$(curl -s https://api.github.com/repos/Raptor3um/raptoreum/releases/latest | jq -r '.assets[] | select(.name|test("'\$VERSION'.")) | .browser_download_url')
 COIN_NAME='raptoreum'
